@@ -1,0 +1,9 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Temporary / OS files
+.DS_Store
+*.swp
+*.bak
+*~

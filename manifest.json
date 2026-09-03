@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.kanthi.gati",
+  "name": "Gati",
+  "version": "0.0.7",
+  "author": "kanthi",
+  "license": "MIT",
+  "description": "Gati (गति) — A dynamic focus timer widget for the Omarchy status bar representing momentum, flow, and focus.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "barWidget": {
+    "displayName": "Gati (Focus Timer)",
+    "description": "Focus timer with session counts, break alerts, and popout controls.",
+    "category": "Productivity",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "workDurationMin": 5,
+      "shortBreakMin": 2,
+      "longBreakMin": 15,
+      "longBreakInterval": 4,
+      "showTimerInBar": true,
+      "autoStartBreaks": false,
+      "autoStartWork": false
+    },
+    "schema": [
+      {
+        "key": "workDurationMin",
+        "type": "int",
+        "label": "Focus session duration (minutes)",
+        "defaultValue": 5,
+        "description": "Length of each focus period."
+      },
+      {
+        "key": "shortBreakMin",
+        "type": "int",
+        "label": "Short break duration (minutes)",
+        "defaultValue": 2,
+        "description": "Length of short breaks between sessions."
+      },
+      {
+        "key": "longBreakMin",
+        "type": "int",
+        "label": "Long break duration (minutes)",
+        "defaultValue": 15,
+        "description": "Length of long break after completing set interval."
+      },
+      {
+        "key": "longBreakInterval",
+        "type": "int",
+        "label": "Sessions before long break",
+        "defaultValue": 4,
+        "description": "Number of focus sessions before triggering a long break."
+      },
+      {
+        "key": "showTimerInBar",
+        "type": "boolean",
+        "label": "Show timer in top bar",
+        "defaultValue": true,
+        "description": "Toggle countdown timer text next to the G icon in the bar."
+      }
+    ]
+  },
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  }
+}
