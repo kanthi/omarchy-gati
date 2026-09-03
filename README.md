@@ -93,16 +93,23 @@ The following features are planned for upcoming releases:
 
 ## 📦 Installation & Setup
 
-To install Gati into your local Omarchy shell plugins:
+Install and enable Gati using the native Omarchy plugin CLI:
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/kanthi/omarchy-gati.git ~/Workspace/Repos/omarchy-gati
+# Install and enable Gati directly from GitHub
+omarchy plugin add https://github.com/kanthi/omarchy-gati --enable
+```
 
-# 2. Link into your Omarchy plugins directory
-mkdir -p ~/.config/omarchy/plugins/
-ln -sfn ~/Workspace/Repos/omarchy-gati ~/.config/omarchy/plugins/io.github.kanthi.gati
+### Managing Gati
 
-# 3. Restart Omarchy Shell
-omarchy-restart-shell
+```bash
+# Update Gati to the latest release
+omarchy plugin update io.github.kanthi.gati
+
+# Enable or disable the widget in your top bar
+omarchy plugin enable io.github.kanthi.gati
+omarchy plugin disable io.github.kanthi.gati
+
+# Remove Gati
+omarchy plugin remove io.github.kanthi.gati
 ```
