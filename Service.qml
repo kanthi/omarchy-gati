@@ -32,16 +32,56 @@ Item {
     return base + "/omarchy/gati-state.json"
   }
 
-  property bool stateLoaded: false
+  readonly property string ioScript: {
+    var url = String(Qt.resolvedUrl("safe_state_io.py"))
+    if (url.indexOf("file://") === 0)
+      return url.slice(7)
+    return url
+  }
 
-  FileView {
-    id: stateFile
-    path: service.statePath
-    watchChanges: false
-    atomicWrites: true
-    printErrors: false
-    onLoaded: service.loadPersistedState(text())
-    onLoadFailed: service.loadPersistedState("")
+  property bool stateLoaded: false
+  property bool isWriting: false
+  property var pendingWritePayload: null
+
+  Process {
+    id: readProc
+    command: ["python3", service.ioScript, "read", service.statePath]
+    stdout: StdioCollector {
+      id: readOut
+      waitForEnd: true
+    }
+    onExited: function(exitCode) {
+      if (exitCode === 0) {
+        service.loadPersistedState(readOut.text || "")
+      } else {
+        service.loadPersistedState("")
+      }
+    }
+  }
+
+  Process {
+    id: writeProc
+    stdout: StdioCollector {
+      waitForEnd: true
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+    }
+    onExited: function(exitCode) {
+      service.isWriting = false
+      if (service.pendingWritePayload !== null) {
+        var next = service.pendingWritePayload
+        service.pendingWritePayload = null
+        service.executeWrite(next)
+      }
+    }
+  }
+
+  function executeWrite(payload) {
+    if (!payload || service.ioScript.length === 0) return
+    service.isWriting = true
+    writeProc.command = ["python3", service.ioScript, "write", service.statePath, payload]
+    writeProc.running = true
   }
 
   function saveState() {
@@ -59,43 +99,84 @@ Item {
       breakComplete: service.breakComplete,
       lastSaved: Date.now()
     }
-    stateFile.setText(JSON.stringify(data, null, 2) + "\n")
+    var payload = JSON.stringify(data)
+    if (service.isWriting || writeProc.running) {
+      service.pendingWritePayload = payload
+      return
+    }
+    service.executeWrite(payload)
   }
 
   function loadPersistedState(raw) {
     if (service.stateLoaded) return
     service.stateLoaded = true
 
-    if (!raw || raw.trim().length === 0) return
+    if (!raw || typeof raw !== "string" || raw.trim().length === 0) return
 
     try {
       var data = JSON.parse(raw)
       if (!data || typeof data !== "object") return
 
-      service.state = data.state || Model.STATE_IDLE
-      service.sessionIndex = data.sessionIndex || 1
-      service.completedSessions = (typeof data.completedSessions === "number") ? data.completedSessions : 0
-      service.maxSessions = data.maxSessions || 4
-      service.totalSeconds = data.totalSeconds || (service.workDurationMin * 60)
-      service.breakComplete = data.breakComplete === true
+      var validStates = [Model.STATE_IDLE, Model.STATE_WORK, Model.STATE_SHORT_BREAK, Model.STATE_LONG_BREAK]
+      service.state = (typeof data.state === "string" && validStates.indexOf(data.state) !== -1)
+        ? data.state
+        : Model.STATE_IDLE
 
-      if (data.running && data.targetEndTime > 0) {
+      var maxSess = (typeof data.maxSessions === "number" && Number.isFinite(data.maxSessions))
+        ? Math.floor(data.maxSessions)
+        : 4
+      service.maxSessions = Math.min(16, Math.max(1, maxSess))
+
+      var sessIdx = (typeof data.sessionIndex === "number" && Number.isFinite(data.sessionIndex))
+        ? Math.floor(data.sessionIndex)
+        : 1
+      service.sessionIndex = Math.min(service.maxSessions, Math.max(1, sessIdx))
+
+      var compSess = (typeof data.completedSessions === "number" && Number.isFinite(data.completedSessions))
+        ? Math.floor(data.completedSessions)
+        : 0
+      service.completedSessions = Math.min(10000, Math.max(0, compSess))
+
+      var totSec = (typeof data.totalSeconds === "number" && Number.isFinite(data.totalSeconds))
+        ? Math.floor(data.totalSeconds)
+        : (service.workDurationMin * 60)
+      service.totalSeconds = Math.min(86400, Math.max(1, totSec))
+
+      service.breakComplete = (data.breakComplete === true)
+
+      var isRunning = (data.running === true)
+      var targetEndTime = (typeof data.targetEndTime === "number" && Number.isFinite(data.targetEndTime))
+        ? data.targetEndTime
+        : 0
+
+      if (isRunning && targetEndTime > 0) {
         var now = Date.now()
-        var diff = Math.max(0, Math.round((data.targetEndTime - now) / 1000))
-        if (diff > 0) {
-          service.targetEndTime = data.targetEndTime
-          service.remainingSeconds = diff
-          service.running = true
-          timer.start()
+        if (targetEndTime <= now + (86400 * 1000)) {
+          var diff = Math.round((targetEndTime - now) / 1000)
+          if (diff > 0) {
+            service.targetEndTime = targetEndTime
+            service.remainingSeconds = Math.min(service.totalSeconds, diff)
+            service.running = true
+            timer.start()
+          } else {
+            // Timer finished while shell was restarting
+            service.running = false
+            service.remainingSeconds = 0
+            service.targetEndTime = 0
+            service.finishSession()
+          }
         } else {
-          // Timer finished while shell was restarting
-          service.remainingSeconds = 0
-          service.finishSession()
+          service.running = false
+          service.targetEndTime = 0
+          service.remainingSeconds = service.totalSeconds
         }
       } else {
         service.running = false
         service.targetEndTime = 0
-        service.remainingSeconds = data.remainingSeconds !== undefined ? data.remainingSeconds : (service.workDurationMin * 60)
+        var remSec = (typeof data.remainingSeconds === "number" && Number.isFinite(data.remainingSeconds))
+          ? Math.floor(data.remainingSeconds)
+          : (service.workDurationMin * 60)
+        service.remainingSeconds = Math.min(service.totalSeconds, Math.max(0, remSec))
       }
     } catch (e) {
       console.warn("Gati: failed to parse persisted state:", e)
@@ -144,7 +225,9 @@ Item {
   }
 
   function startBreak(minutes) {
-    var dur = (minutes !== undefined && minutes > 0) ? minutes : shortBreakMin
+    var dur = (typeof minutes === "number" && Number.isFinite(minutes) && minutes > 0)
+      ? Math.min(180, Math.floor(minutes))
+      : shortBreakMin
     state = Model.STATE_SHORT_BREAK
     breakComplete = false
     totalSeconds = dur * 60
@@ -164,9 +247,12 @@ Item {
   }
 
   function extendBreak(extraMinutes) {
+    var extra = (typeof extraMinutes === "number" && Number.isFinite(extraMinutes) && extraMinutes > 0)
+      ? Math.min(60, Math.floor(extraMinutes))
+      : 5
     breakComplete = false
-    remainingSeconds += extraMinutes * 60
-    totalSeconds += extraMinutes * 60
+    remainingSeconds = Math.min(86400, remainingSeconds + (extra * 60))
+    totalSeconds = Math.min(86400, totalSeconds + (extra * 60))
     targetEndTime = Date.now() + remainingSeconds * 1000
     running = true
     timer.start()
@@ -237,7 +323,15 @@ Item {
 
   Component.onCompleted: {
     Qt.callLater(function() {
-      stateFile.reload()
+      if (!service.stateLoaded && !readProc.running) {
+        readProc.command = ["python3", service.ioScript, "read", service.statePath]
+        readProc.running = true
+      }
     })
+  }
+
+  Component.onDestruction: {
+    if (readProc.running) readProc.running = false
+    if (writeProc.running) writeProc.running = false
   }
 }

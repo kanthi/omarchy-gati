@@ -113,3 +113,36 @@ omarchy-plugin-disable io.github.kanthi.gati
 # Remove Gati
 omarchy-plugin-remove io.github.kanthi.gati
 ```
+
+---
+
+## 🔒 Security, Data & Persistence
+
+- **Zero Network Activity:** Gati operates entirely locally and makes zero network requests.
+- **Strict Bounded Persistence:** State is persisted to `${XDG_STATE_HOME:-~/.local/state}/omarchy/gati-state.json`.
+- **Safe I/O Helper (`safe_state_io.py`):**
+  - Rejects symlinks (`O_NOFOLLOW`) and non-blocking I/O (`O_NONBLOCK`).
+  - Constrains the target path strictly within the user's `$XDG_STATE_HOME` / `$HOME`.
+  - Enforces that both the file and parent directory are owned by the current user UID and are regular files/directories (rejects FIFOs, sockets, and character devices).
+  - Hard byte cap of 64 KiB on all reads and writes to eliminate buffer or memory exhaustion risks.
+  - Validates JSON grammar before disk write and emission.
+  - Performs atomic publication using fsync'd `0600` temporary files (`os.replace`).
+- **Input Sanitization & Range Checks:** Deserialized timer fields (`remainingSeconds`, `totalSeconds`, `sessionIndex`, `completedSessions`, `maxSessions`, `targetEndTime`, `state`) are strictly constrained to finite numbers, valid state enums, and sane range boundaries.
+
+---
+
+## 📋 Dependencies
+
+| Dependency | Purpose |
+| :--- | :--- |
+| **Omarchy Desktop** | `omarchy-shell`, `Quickshell`, `QtQuick` |
+| **Python 3** | Standard Python 3 interpreter for executing `safe_state_io.py` |
+
+No root/sudo privileges, binary daemons, or third-party packages required.
+
+---
+
+## 📄 License
+
+MIT. See [LICENSE](LICENSE).
+

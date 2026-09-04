@@ -94,9 +94,14 @@ BarWidget {
   }
 
   function syncSettings() {
-    Service.workDurationMin = setting("workDurationMin", 5)
-    Service.shortBreakMin = setting("shortBreakMin", 2)
-    Service.longBreakMin = setting("longBreakMin", 15)
+    var rawWork = setting("workDurationMin", 5)
+    var rawShort = setting("shortBreakMin", 2)
+    var rawLong = setting("longBreakMin", 15)
+
+    Service.workDurationMin = (typeof rawWork === "number" && Number.isFinite(rawWork)) ? Math.min(180, Math.max(1, Math.floor(rawWork))) : 5
+    Service.shortBreakMin = (typeof rawShort === "number" && Number.isFinite(rawShort)) ? Math.min(60, Math.max(1, Math.floor(rawShort))) : 2
+    Service.longBreakMin = (typeof rawLong === "number" && Number.isFinite(rawLong)) ? Math.min(120, Math.max(1, Math.floor(rawLong))) : 15
+
     showTimerInBar = (settings && settings.showTimerInBar !== undefined) ? (settings.showTimerInBar === true) : true
     if (Service.state === Model.STATE_IDLE && !Service.running) {
       Service.totalSeconds = Service.workDurationMin * 60
@@ -140,7 +145,11 @@ BarWidget {
     target: "io.github.kanthi.gati"
 
     function start(): string { Service.start(); return "started" }
-    function startBreak(minutes: int): string { Service.startBreak(minutes || 1); return "break_started" }
+    function startBreak(minutes: int): string {
+      var minVal = (typeof minutes === "number" && Number.isFinite(minutes) && minutes > 0) ? Math.min(180, Math.floor(minutes)) : 5
+      Service.startBreak(minVal)
+      return "break_started"
+    }
     function pause(): string { Service.pause(); return "paused" }
     function toggle(): string { Service.toggle(); return "toggled" }
     function reset(): string { Service.reset(); return "reset" }
