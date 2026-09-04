@@ -138,7 +138,7 @@ omarchy-plugin-remove io.github.kanthi.gati
 | **Omarchy Desktop** | `omarchy-shell`, `Quickshell`, `QtQuick` |
 | **Python 3** | Standard Python 3 interpreter for executing `safe_state_io.py` |
 
-No root/sudo privileges, binary daemons, or third-party packages required.
+Runs entirely with standard user permissions; no administrative privileges, background daemons, or third-party packages required.
 
 ---
 
