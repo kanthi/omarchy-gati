@@ -38,14 +38,20 @@ Gati lives directly in your Omarchy status bar as a sleek infinity glyph with li
    - Monospace countdown timer and embossed `FOCUS` subtitle.
    - **Harmonic Kinetic Waveform:** 28 dynamic bars oscillating with fluid harmonic frequencies in real time.
    - **Session Dots:** Minimalist floating dots track cycle progress (e.g. 4 focus sessions per cycle).
-   - Control strip with **Reset**, **Play/Pause**, **Skip**, and **Settings** modal.
+   - Control strip with **Reset**, **Play/Pause**, **Skip**, **Focus Stats** (`󰄫`), and **Settings** (`󰒓`) buttons.
 
-3. **Fullscreen Break Window Takeover:**
+3. **Focus Statistics & Momentum Analytics:**
+   - One-click navigation to the dedicated **Focus Statistics** view directly from the control strip.
+   - **Hero Metric Card:** Displays today's total focus time, completed sessions, daily goal progress percentage, and an active streak flame counter (`󰈸`).
+   - **7-Day Sparkline Bar Chart:** Interactive rolling 7-day activity graph dynamically scaled and color-coded.
+   - **Lifetime Totals:** Cumulative focus hours and lifetime completed sessions persisted safely across restarts.
+
+4. **Fullscreen Break Window Takeover:**
    - When the focus session finishes, Gati takes over with a distraction-free fullscreen overlay.
    - Features a **GPU-blurred desktop wallpaper backdrop** covered by a soft **0.65 opacity dark scrim**.
    - Displays break countdown, pastel mint harmonic wave, and quick action buttons (**`+5 min`**, **`Skip`**, and **Play/Pause**).
 
-4. **Break Completion & Flow Continuity:**
+5. **Break Completion & Flow Continuity:**
    - When the break ends, the overlay displays **`00:00 BREAK COMPLETE`**.
    - The session dot lights up permanently as completed.
    - A prominent **`▶ Start Focus`** action pill lets you dive straight into the next focus session.
@@ -54,7 +60,7 @@ Gati lives directly in your Omarchy status bar as a sleek infinity glyph with li
 
 ## ⌨️ IPC Interface & Automation
 
-Control Gati headlessly or bind actions to your window manager keyboard shortcuts:
+Control Gati headlessly, query analytics, or bind actions to your window manager keyboard shortcuts:
 
 ```bash
 # Toggle between start and pause
@@ -75,6 +81,12 @@ omarchy-shell io.github.kanthi.gati skip
 # Open or close the popout panel
 omarchy-shell io.github.kanthi.gati open
 omarchy-shell io.github.kanthi.gati close
+
+# Output human-readable focus statistics summary
+omarchy-shell io.github.kanthi.gati stats
+
+# Query detailed analytics in JSON format
+omarchy-shell io.github.kanthi.gati statsJson
 ```
 
 ---
@@ -85,9 +97,9 @@ The following features are planned for upcoming releases:
 
 - ⌨️ **Global Desktop Keybindings:** Direct integration with Hyprland and Sway shortcuts for instant keyboard control.
 - 🔔 **Acoustic Sound Cues & Chimes:** Elegant audio notifications (soft bells on focus start, soothing acoustic bowls on break start/finish).
-- 📊 **Focus Statistics & Analytics:** Session history, daily streaks, completion charts, and time tracked per day/week.
 - 🎵 **Ambient Soundscapes:** Built-in generative soundscapes (binaural beats, soft rain, coffee shop, white/pink noise).
 - 🎨 **Expanded Theme Presets:** Customizable color palettes and font styling matching popular Omarchy themes.
+- ✅ **Focus Statistics & Analytics:** Delivered in `v0.0.9` (daily streak, 7-day sparkline chart, lifetime metrics, and IPC queries).
 
 ---
 

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.kanthi.gati",
   "name": "Gati",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "author": "kanthi",
   "license": "MIT",
   "description": "Gati (गति) — A dynamic focus timer widget for the Omarchy status bar representing momentum, flow, and focus.",

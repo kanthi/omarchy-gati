@@ -158,6 +158,19 @@ BarWidget {
     function continueFocus(): string { Service.continueToNextFocus(); return "continued" }
     function open(): void { root.open() }
     function close(): void { root.close() }
+    function stats(): string { return Service.statsSummary() }
+    function statsJson(): string {
+      return JSON.stringify({
+        todayDate: Service.todayDate,
+        todayFocusSeconds: Service.todayFocusSeconds,
+        todayCompletedSessions: Service.todayCompletedSessions,
+        streakDays: Service.streakDays,
+        lastActiveDate: Service.lastActiveDate,
+        totalFocusSeconds: Service.totalFocusSeconds,
+        totalCompletedSessionsLifetime: Service.totalCompletedSessionsLifetime,
+        weeklyHistory: Service.getWeeklyHistory()
+      })
+    }
   }
 
   WidgetButton {

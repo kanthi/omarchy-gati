@@ -16,7 +16,9 @@ Panel {
   property var owner: null
   readonly property var barIdentity: hostWidget || root
 
-  property bool showSettings: false
+  property string currentView: "timer"
+  readonly property bool showSettings: currentView === "settings"
+  readonly property bool showStats: currentView === "stats"
 
   // Soft Pleasant Pastel Color Palette
   readonly property color focusColor: hostWidget ? hostWidget.focusColor : Qt.rgba(0.96, 0.60, 0.60, 1.0)
@@ -78,7 +80,7 @@ Panel {
 
   function open() { root.controller.show() }
   function close() {
-    showSettings = false
+    currentView = "timer"
     root.controller.hide()
   }
   function toggle() { if (root.opened) root.close(); else root.open() }
@@ -107,16 +109,16 @@ Panel {
         anchors.top: parent.top
         spacing: Style.space(12)
 
-        // 1. Settings Header Row (Only visible when Settings is open)
+        // 1. Sub-View Header Row (Visible when Settings or Stats is open)
         Item {
           width: parent.width
-          height: root.showSettings ? Style.space(26) : 0
-          visible: root.showSettings
+          height: (root.showSettings || root.showStats) ? Style.space(26) : 0
+          visible: root.showSettings || root.showStats
 
           Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: "Settings"
+            text: root.showStats ? "Focus Statistics" : "Settings"
             font.family: bar ? bar.fontFamily : Style.font.family
             font.pixelSize: Style.font.subtitle
             font.bold: true
@@ -125,7 +127,7 @@ Panel {
             styleColor: Qt.rgba(0, 0, 0, 0.85)
           }
 
-          // Back / Close button in header when in settings mode
+          // Back / Close button in header returning to Timer view
           Rectangle {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -149,7 +151,7 @@ Panel {
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              onClicked: root.showSettings = false
+              onClicked: root.currentView = "timer"
             }
           }
         }
@@ -158,7 +160,7 @@ Panel {
         Column {
           width: parent.width
           spacing: Style.space(14)
-          visible: !root.showSettings
+          visible: root.currentView === "timer"
 
           // Top Header Row: Time & Phase + Session Badge
           Item {
@@ -381,42 +383,359 @@ Panel {
               }
             }
 
-            // Settings Toggle Button on the Right Edge
-            Rectangle {
+            // Right Edge: Stats & Settings Utility Buttons
+            Row {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(26)
-              height: Style.space(26)
-              radius: Style.cornerRadius
-              color: root.showSettings
-                ? Util.alpha(root.activePhaseColor, 0.15)
-                : (settingsMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
-              border.color: root.showSettings ? root.activePhaseColor : (settingsMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(1, 1, 1, 0.15))
-              border.width: 1
+              spacing: Style.space(6)
 
-              Behavior on color { ColorAnimation { duration: 140 } }
-              Behavior on border.color { ColorAnimation { duration: 140 } }
+              // Stats Toggle Button (Placed before Settings)
+              Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: Style.space(26)
+                height: Style.space(26)
+                radius: Style.cornerRadius
+                color: root.showStats
+                  ? Util.alpha(root.activePhaseColor, 0.15)
+                  : (statsMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
+                border.color: root.showStats
+                  ? root.activePhaseColor
+                  : (statsMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(1, 1, 1, 0.15))
+                border.width: 1
 
-              Text {
-                anchors.centerIn: parent
-                text: "󰒓"
-                font.family: bar ? bar.fontFamily : Style.font.family
-                font.pixelSize: Style.font.body
-                color: root.showSettings ? root.activePhaseColor : Color.foreground
+                Behavior on color { ColorAnimation { duration: 140 } }
+                Behavior on border.color { ColorAnimation { duration: 140 } }
+
+                Text {
+                  anchors.centerIn: parent
+                  text: "󰄫"
+                  font.family: bar ? bar.fontFamily : Style.font.family
+                  font.pixelSize: Style.font.body
+                  color: root.showStats ? root.activePhaseColor : Color.foreground
+                }
+
+                MouseArea {
+                  id: statsMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.currentView = (root.currentView === "stats") ? "timer" : "stats"
+                }
               }
 
-              MouseArea {
-                id: settingsMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.showSettings = !root.showSettings
+              // Settings Toggle Button
+              Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: Style.space(26)
+                height: Style.space(26)
+                radius: Style.cornerRadius
+                color: root.showSettings
+                  ? Util.alpha(root.activePhaseColor, 0.15)
+                  : (settingsMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
+                border.color: root.showSettings
+                  ? root.activePhaseColor
+                  : (settingsMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(1, 1, 1, 0.15))
+                border.width: 1
+
+                Behavior on color { ColorAnimation { duration: 140 } }
+                Behavior on border.color { ColorAnimation { duration: 140 } }
+
+                Text {
+                  anchors.centerIn: parent
+                  text: "󰒓"
+                  font.family: bar ? bar.fontFamily : Style.font.family
+                  font.pixelSize: Style.font.body
+                  color: root.showSettings ? root.activePhaseColor : Color.foreground
+                }
+
+                MouseArea {
+                  id: settingsMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.currentView = (root.currentView === "settings") ? "timer" : "settings"
+                }
               }
             }
           }
         }
 
-        // 5. On-Demand Lazy Loaded Settings View
+        // 3. On-Demand Lazy Loaded Stats View
+        Loader {
+          width: parent.width
+          active: root.showStats
+          visible: root.showStats
+          sourceComponent: statsComponent
+        }
+
+        Component {
+          id: statsComponent
+
+          Column {
+            width: parent.width
+            spacing: Style.space(12)
+
+            // Hero Metric Card: Today's Focus & Sessions
+            Rectangle {
+              width: parent.width
+              height: Style.space(90)
+              radius: Style.cornerRadius
+              color: Qt.rgba(1, 1, 1, 0.035)
+              border.color: Qt.rgba(1, 1, 1, 0.12)
+              border.width: 1
+
+              Column {
+                anchors.fill: parent
+                anchors.margins: Style.space(10)
+                spacing: Style.space(8)
+
+                // Top Row: 2 Metric Columns
+                Row {
+                  width: parent.width
+                  spacing: Style.space(8)
+
+                  // Left: Focus Time Today
+                  Item {
+                    width: (parent.width - Style.space(8)) / 2
+                    height: Style.space(40)
+
+                    Column {
+                      anchors.left: parent.left
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: Style.space(2)
+
+                      Text {
+                        text: Model.formatHoursMinutes(Service.todayFocusSeconds)
+                        font.family: bar ? bar.fontFamily : Style.font.family
+                        font.pixelSize: Style.font.title + 2
+                        font.bold: true
+                        color: Color.foreground
+                        style: Text.Sunken
+                        styleColor: Qt.rgba(0, 0, 0, 0.8)
+                      }
+
+                      Text {
+                        text: "TODAY'S FOCUS"
+                        font.family: bar ? bar.fontFamily : Style.font.family
+                        font.pixelSize: Style.font.caption - 2
+                        font.bold: true
+                        font.letterSpacing: 0.8
+                        color: Qt.rgba(1, 1, 1, 0.45)
+                      }
+                    }
+                  }
+
+                  // Right: Sessions Today
+                  Item {
+                    width: (parent.width - Style.space(8)) / 2
+                    height: Style.space(40)
+
+                    Column {
+                      anchors.right: parent.right
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: Style.space(2)
+
+                      Text {
+                        anchors.right: parent.right
+                        text: Service.todayCompletedSessions + " / 8"
+                        font.family: bar ? bar.fontFamily : Style.font.family
+                        font.pixelSize: Style.font.title + 2
+                        font.bold: true
+                        color: root.activePhaseColor
+                        style: Text.Sunken
+                        styleColor: Qt.rgba(0, 0, 0, 0.8)
+                      }
+
+                      Text {
+                        anchors.right: parent.right
+                        text: "SESSIONS TODAY"
+                        font.family: bar ? bar.fontFamily : Style.font.family
+                        font.pixelSize: Style.font.caption - 2
+                        font.bold: true
+                        font.letterSpacing: 0.8
+                        color: Qt.rgba(1, 1, 1, 0.45)
+                      }
+                    }
+                  }
+                }
+
+                // Subtle Divider
+                Rectangle {
+                  width: parent.width
+                  height: 1
+                  color: Qt.rgba(1, 1, 1, 0.08)
+                }
+
+                // Sub-Row: Streak & Goal
+                Item {
+                  width: parent.width
+                  height: Style.space(16)
+
+                  Row {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Style.space(4)
+
+                    Text {
+                      text: "󰈸"
+                      font.family: bar ? bar.fontFamily : Style.font.family
+                      font.pixelSize: Style.font.caption + 1
+                      color: root.pausedColor
+                    }
+
+                    Text {
+                      text: Service.streakDays + (Service.streakDays === 1 ? " Day Streak" : " Days Streak")
+                      font.family: bar ? bar.fontFamily : Style.font.family
+                      font.pixelSize: Style.font.caption
+                      font.bold: true
+                      color: root.pausedColor
+                    }
+                  }
+
+                  Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Math.min(100, Math.round((Service.todayCompletedSessions / 8) * 100)) + "% of daily goal"
+                    font.family: bar ? bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.caption - 1
+                    color: Qt.rgba(1, 1, 1, 0.5)
+                  }
+                }
+              }
+            }
+
+            // 7-Day Activity Sparkline Chart
+            Rectangle {
+              width: parent.width
+              height: Style.space(126)
+              radius: Style.cornerRadius
+              color: Qt.rgba(1, 1, 1, 0.035)
+              border.color: Qt.rgba(1, 1, 1, 0.12)
+              border.width: 1
+
+              Column {
+                anchors.fill: parent
+                anchors.margins: Style.space(10)
+                spacing: Style.space(8)
+
+                Item {
+                  width: parent.width
+                  height: Style.space(14)
+
+                  Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "7-DAY ACTIVITY"
+                    font.family: bar ? bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.caption - 2
+                    font.bold: true
+                    font.letterSpacing: 0.9
+                    color: Qt.rgba(1, 1, 1, 0.5)
+                  }
+
+                  Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Model.formatHoursDecimal(Service.todayFocusSeconds) + " today"
+                    font.family: bar ? bar.fontFamily : Style.font.family
+                    font.pixelSize: Style.font.caption - 1
+                    font.bold: true
+                    color: root.activePhaseColor
+                  }
+                }
+
+                Item {
+                  width: parent.width
+                  height: Style.space(80)
+
+                  Row {
+                    anchors.centerIn: parent
+                    spacing: Style.space(14)
+
+                    Repeater {
+                      model: Service.getWeeklyHistory()
+
+                      Column {
+                        required property var modelData
+                        spacing: Style.space(4)
+                        anchors.bottom: parent.bottom
+
+                        Text {
+                          anchors.horizontalCenter: parent.horizontalCenter
+                          text: modelData.seconds > 0 ? Model.formatHoursDecimal(modelData.seconds) : "-"
+                          font.family: bar ? bar.fontFamily : Style.font.family
+                          font.pixelSize: Style.font.caption - 3
+                          color: modelData.isToday ? root.activePhaseColor : Qt.rgba(1, 1, 1, 0.4)
+                        }
+
+                        Item {
+                          width: Style.space(14)
+                          height: Style.space(48)
+                          anchors.horizontalCenter: parent.horizontalCenter
+
+                          Rectangle {
+                            anchors.bottom: parent.bottom
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width
+                            height: Math.max(Style.space(4), Style.space(48) * modelData.fraction)
+                            radius: Style.space(4)
+                            color: modelData.isToday
+                              ? root.activePhaseColor
+                              : (modelData.seconds > 0 ? Qt.rgba(1, 1, 1, 0.24) : Qt.rgba(1, 1, 1, 0.08))
+
+                            Behavior on height { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                          }
+                        }
+
+                        Text {
+                          anchors.horizontalCenter: parent.horizontalCenter
+                          text: modelData.dayInitial
+                          font.family: bar ? bar.fontFamily : Style.font.family
+                          font.pixelSize: Style.font.caption - 1
+                          font.bold: modelData.isToday
+                          color: modelData.isToday ? root.activePhaseColor : Color.foreground
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            // Lifetime Summary Banner
+            Rectangle {
+              width: parent.width
+              height: Style.space(32)
+              radius: Style.cornerRadius
+              color: Qt.rgba(1, 1, 1, 0.035)
+              border.color: Qt.rgba(1, 1, 1, 0.08)
+              border.width: 1
+
+              Row {
+                anchors.centerIn: parent
+                spacing: Style.space(6)
+
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: "󰋚"
+                  font.family: bar ? bar.fontFamily : Style.font.family
+                  font.pixelSize: Style.font.caption
+                  color: Qt.rgba(1, 1, 1, 0.5)
+                }
+
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: "Lifetime: " + Model.formatHoursMinutes(Service.totalFocusSeconds) + " · " + Service.totalCompletedSessionsLifetime + " sessions"
+                  font.family: bar ? bar.fontFamily : Style.font.family
+                  font.pixelSize: Style.font.caption - 1
+                  color: Qt.rgba(1, 1, 1, 0.6)
+                }
+              }
+            }
+          }
+        }
+
+        // 4. On-Demand Lazy Loaded Settings View
         Loader {
           width: parent.width
           active: root.showSettings
