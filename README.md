@@ -1,12 +1,14 @@
 # Gati (गति) — Focus Timer for Omarchy Shell
 
 <p align="center">
-  <img src="assets/gati_demo.gif" alt="Gati Focus Timer Walkthrough" width="100%" />
+  <a href="https://github.com/kanthi/omarchy-gati/blob/main/assets/gati_demo.mp4">
+    <img src="assets/gati_demo.gif?v=0.0.9" alt="Gati Focus Timer Walkthrough" width="100%" />
+  </a>
 </p>
 
 <p align="center">
   <em>Steady momentum, effortless flow, and purposeful deep work directly inside the Omarchy top bar.</em><br/>
-  <strong>🎬 High-Definition Video Walkthrough:</strong> <a href="assets/gati_demo.mp4"><code>assets/gati_demo.mp4</code></a> (1080p / 60s detailed walkthrough)
+  <strong>🎬 High-Definition Video Walkthrough:</strong> <a href="https://github.com/kanthi/omarchy-gati/blob/main/assets/gati_demo.mp4"><code>assets/gati_demo.mp4</code></a> (1080p / 64s detailed walkthrough)
 </p>
 
 ---
