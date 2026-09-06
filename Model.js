@@ -101,3 +101,71 @@ function formatHoursDecimal(totalSeconds) {
   return h.toFixed(1) + "h"
 }
 
+var MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+var MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+var MONTH_INITIALS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+
+function currentMonthKey() {
+  return todayIso().substring(0, 7)
+}
+
+function currentYearKey() {
+  return todayIso().substring(0, 4)
+}
+
+function currentMonthName() {
+  var d = new Date()
+  return MONTH_NAMES[d.getMonth()] + " " + d.getFullYear()
+}
+
+function currentYearName() {
+  return "" + (new Date()).getFullYear()
+}
+
+function last28DaysIso() {
+  var list = []
+  var now = new Date()
+  for (var i = 27; i >= 0; i--) {
+    var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)
+    list.push(isoFromDate(d))
+  }
+  return list
+}
+
+// Geometric envelope matching the Gati infinity icon silhouette
+function gatiWaveEnvelope(normX) {
+  var x = Math.max(0.0, Math.min(1.0, normX)) * 24.0
+  var topY = 8.0
+  var botY = 8.0
+
+  if (x < 3.5) {
+    var t = Math.max(0.0, x / 3.5)
+    var cap = Math.sqrt(Math.max(0.0, 1.0 - Math.pow(1.0 - t, 2)))
+    topY = 8.0 - (6.0 * (0.35 + 0.65 * cap))
+    botY = 8.0 + (6.0 * (0.35 + 0.65 * cap))
+  } else if (x <= 6.5) {
+    topY = 2.0
+    botY = 14.0
+  } else if (x <= 12.0) {
+    var ratio = (x - 6.5) / 5.5
+    topY = 2.0 + (6.0 * ratio)
+    botY = 14.0 - (6.0 * ratio)
+  } else if (x <= 17.5) {
+    var ratio2 = (x - 12.0) / 5.5
+    topY = 8.0 - (6.0 * ratio2)
+    botY = 8.0 + (6.0 * ratio2)
+  } else if (x <= 20.5) {
+    topY = 2.0
+    botY = 14.0
+  } else {
+    var t2 = Math.max(0.0, (24.0 - x) / 3.5)
+    var cap2 = Math.sqrt(Math.max(0.0, 1.0 - Math.pow(1.0 - t2, 2)))
+    topY = 8.0 - (6.0 * (0.35 + 0.65 * cap2))
+    botY = 8.0 + (6.0 * (0.35 + 0.65 * cap2))
+  }
+
+  var span = (botY - topY) / 12.0
+  return Math.max(0.0, span)
+}
+
+

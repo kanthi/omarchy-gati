@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Run Python-based unit and validation test suite
+python3 "$root/tests/test_plugin.py"
+
+# Run official Omarchy CLI validation if installed
+if command -v omarchy >/dev/null 2>&1; then
+  omarchy plugin validate "$root"
+fi
+
+printf '\n\033[0;32m✓ All Gati plugin checks and tests passed successfully.\033[0m\n'

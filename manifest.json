@@ -16,39 +16,52 @@
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "workDurationMin": 5,
-      "shortBreakMin": 2,
+      "workflowMode": "classic",
+      "workDurationMin": 25,
+      "shortBreakMin": 5,
       "longBreakMin": 15,
       "longBreakInterval": 4,
       "showTimerInBar": true,
-      "autoStartBreaks": false,
-      "autoStartWork": false
+      "resetDaily": true,
+      "autoStartBreaks": true,
+      "autoStartWork": false,
+      "soundEnabled": true,
+      "soundVolume": 80,
+      "soundTheme": "zen",
+      "notificationsEnabled": true
     },
     "schema": [
       {
+        "key": "workflowMode",
+        "type": "string",
+        "label": "Workflow preset mode",
+        "defaultValue": "classic",
+        "description": "Selected focus timer workflow preset (classic, deep, ultra, custom)."
+      },
+      {
         "key": "workDurationMin",
-        "type": "int",
+        "type": "integer",
         "label": "Focus session duration (minutes)",
-        "defaultValue": 5,
+        "defaultValue": 25,
         "description": "Length of each focus period."
       },
       {
         "key": "shortBreakMin",
-        "type": "int",
+        "type": "integer",
         "label": "Short break duration (minutes)",
-        "defaultValue": 2,
+        "defaultValue": 5,
         "description": "Length of short breaks between sessions."
       },
       {
         "key": "longBreakMin",
-        "type": "int",
+        "type": "integer",
         "label": "Long break duration (minutes)",
         "defaultValue": 15,
         "description": "Length of long break after completing set interval."
       },
       {
         "key": "longBreakInterval",
-        "type": "int",
+        "type": "integer",
         "label": "Sessions before long break",
         "defaultValue": 4,
         "description": "Number of focus sessions before triggering a long break."
@@ -59,6 +72,55 @@
         "label": "Show timer in top bar",
         "defaultValue": true,
         "description": "Toggle countdown timer text next to the G icon in the bar."
+      },
+      {
+        "key": "resetDaily",
+        "type": "boolean",
+        "label": "Reset daily stats automatically",
+        "defaultValue": true,
+        "description": "Automatically reset daily focus counter and session blocks at midnight."
+      },
+      {
+        "key": "soundEnabled",
+        "type": "boolean",
+        "label": "Audio sound cues",
+        "defaultValue": true,
+        "description": "Play acoustic bells and sound cues on session start and completion."
+      },
+      {
+        "key": "soundVolume",
+        "type": "integer",
+        "label": "Sound volume percentage",
+        "defaultValue": 80,
+        "description": "Volume level for audio notification chimes (0-100)."
+      },
+      {
+        "key": "soundTheme",
+        "type": "string",
+        "label": "Sound theme",
+        "defaultValue": "zen",
+        "description": "Acoustic sound theme for timer alerts (zen, crystal, marimba)."
+      },
+      {
+        "key": "notificationsEnabled",
+        "type": "boolean",
+        "label": "Desktop notifications",
+        "defaultValue": true,
+        "description": "Send a desktop notification toast 10 seconds before each break starts."
+      },
+      {
+        "key": "autoStartBreaks",
+        "type": "boolean",
+        "label": "Auto-start breaks",
+        "defaultValue": true,
+        "description": "Automatically transition into rest breaks when a focus session ends."
+      },
+      {
+        "key": "autoStartWork",
+        "type": "boolean",
+        "label": "Auto-start focus sessions",
+        "defaultValue": false,
+        "description": "Automatically start next focus session when a break countdown ends."
       }
     ]
   },

@@ -94,16 +94,42 @@ BarWidget {
   }
 
   function syncSettings() {
-    var rawWork = setting("workDurationMin", 5)
-    var rawShort = setting("shortBreakMin", 2)
+    var rawWork = setting("workDurationMin", 25)
+    var rawShort = setting("shortBreakMin", 5)
     var rawLong = setting("longBreakMin", 15)
+    var rawMax = setting("longBreakInterval", 4)
+    var rawReset = setting("resetDaily", true)
+    var rawMode = setting("workflowMode", "classic")
+    var rawAutoBreak = setting("autoStartBreaks", true)
+    var rawAutoWork = setting("autoStartWork", false)
 
-    Service.workDurationMin = (typeof rawWork === "number" && Number.isFinite(rawWork)) ? Math.min(180, Math.max(1, Math.floor(rawWork))) : 5
-    Service.shortBreakMin = (typeof rawShort === "number" && Number.isFinite(rawShort)) ? Math.min(60, Math.max(1, Math.floor(rawShort))) : 2
-    Service.longBreakMin = (typeof rawLong === "number" && Number.isFinite(rawLong)) ? Math.min(120, Math.max(1, Math.floor(rawLong))) : 15
+    if (root.settings && root.settings.workflowMode !== undefined) {
+      Service.workflowMode = rawMode || "classic"
+    }
+    if (root.settings && root.settings.workDurationMin !== undefined) {
+      Service.workDurationMin = (typeof rawWork === "number" && Number.isFinite(rawWork)) ? Math.min(180, Math.max(1, Math.floor(rawWork))) : 25
+    }
+    if (root.settings && root.settings.shortBreakMin !== undefined) {
+      Service.shortBreakMin = (typeof rawShort === "number" && Number.isFinite(rawShort)) ? Math.min(60, Math.max(1, Math.floor(rawShort))) : 5
+    }
+    if (root.settings && root.settings.longBreakMin !== undefined) {
+      Service.longBreakMin = (typeof rawLong === "number" && Number.isFinite(rawLong)) ? Math.min(120, Math.max(1, Math.floor(rawLong))) : 15
+    }
+    if (root.settings && root.settings.longBreakInterval !== undefined) {
+      Service.maxSessions = (typeof rawMax === "number" && Number.isFinite(rawMax)) ? Math.min(16, Math.max(1, Math.floor(rawMax))) : 4
+    }
+    if (root.settings && root.settings.resetDaily !== undefined) {
+      Service.resetDaily = (typeof rawReset === "boolean") ? rawReset : true
+    }
+    if (root.settings && root.settings.autoStartBreaks !== undefined) {
+      Service.autoStartBreaks = (typeof rawAutoBreak === "boolean") ? rawAutoBreak : true
+    }
+    if (root.settings && root.settings.autoStartWork !== undefined) {
+      Service.autoStartWork = (typeof rawAutoWork === "boolean") ? rawAutoWork : false
+    }
 
     showTimerInBar = (settings && settings.showTimerInBar !== undefined) ? (settings.showTimerInBar === true) : true
-    if (Service.state === Model.STATE_IDLE && !Service.running) {
+    if (!Service.running && (Service.state === Model.STATE_IDLE || Service.state === Model.STATE_WORK)) {
       Service.totalSeconds = Service.workDurationMin * 60
       Service.remainingSeconds = Service.totalSeconds
     }
@@ -156,21 +182,123 @@ BarWidget {
     function skip(): string { Service.skip(); return "skipped" }
     function extendBreak(): string { Service.extendBreak(5); return "extended" }
     function continueFocus(): string { Service.continueToNextFocus(); return "continued" }
-    function open(): void { root.open() }
+    function toggleSound(): string {
+      Service.soundEnabled = !Service.soundEnabled
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ soundEnabled: Service.soundEnabled })
+      return Service.soundEnabled ? "sound_on" : "sound_muted"
+    }
+    function setSound(enabled: bool): string {
+      Service.soundEnabled = enabled
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ soundEnabled: Service.soundEnabled })
+      return enabled ? "sound_on" : "sound_muted"
+    }
+    function setSoundVolume(volume: int): string {
+      var vol = Math.max(0, Math.min(100, Math.floor(volume)))
+      Service.soundVolume = vol
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ soundVolume: vol })
+      return "volume_set:" + vol
+    }
+    function setSoundTheme(theme: string): string {
+      if (theme === "zen" || theme === "crystal" || theme === "marimba") {
+        Service.soundTheme = theme
+        Service.saveState()
+        if (panelLoader.item) panelLoader.item.persist({ soundTheme: theme })
+        Service.playSound("focus_complete")
+        return "theme_set:" + theme
+      }
+      return "invalid_theme"
+    }
+    function testSound(): string {
+      Service.playSound("focus_complete")
+      return "playing"
+    }
+    function testNotification(): string {
+      Service.sendNotification("Break in 10s ☕", "Wrap up your work — your 5-minute break is about to begin.", "normal")
+      return "notified"
+    }
+    function toggleNotifications(): string {
+      Service.notificationsEnabled = !Service.notificationsEnabled
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ notificationsEnabled: Service.notificationsEnabled })
+      return Service.notificationsEnabled ? "notifications_on" : "notifications_off"
+    }
+    function setNotifications(enabled: bool): string {
+      Service.notificationsEnabled = enabled
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ notificationsEnabled: Service.notificationsEnabled })
+      return enabled ? "notifications_on" : "notifications_off"
+    }
+    function toggleAutoBreak(): string {
+      Service.autoStartBreaks = !Service.autoStartBreaks
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ autoStartBreaks: Service.autoStartBreaks })
+      return Service.autoStartBreaks ? "auto_break_on" : "auto_break_off"
+    }
+    function setAutoBreak(enabled: bool): string {
+      Service.autoStartBreaks = enabled
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ autoStartBreaks: Service.autoStartBreaks })
+      return enabled ? "auto_break_on" : "auto_break_off"
+    }
+    function toggleAutoFocus(): string {
+      Service.autoStartWork = !Service.autoStartWork
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ autoStartWork: Service.autoStartWork })
+      return Service.autoStartWork ? "auto_focus_on" : "auto_focus_off"
+    }
+    function setAutoFocus(enabled: bool): string {
+      Service.autoStartWork = enabled
+      Service.saveState()
+      if (panelLoader.item) panelLoader.item.persist({ autoStartWork: Service.autoStartWork })
+      return enabled ? "auto_focus_on" : "auto_focus_off"
+    }
+    function open(): void {
+      root.open()
+      if (panelLoader.item) panelLoader.item.currentView = "timer"
+      else Qt.callLater(function() { if (panelLoader.item) panelLoader.item.currentView = "timer" })
+    }
     function close(): void { root.close() }
-    function stats(): string { return Service.statsSummary() }
-    function statsJson(): string {
+    function openSettings(): void {
+      root.open()
+      if (panelLoader.item) panelLoader.item.currentView = "settings"
+      else Qt.callLater(function() { if (panelLoader.item) panelLoader.item.currentView = "settings" })
+    }
+    function openStats(): void {
+      root.open()
+      if (panelLoader.item) panelLoader.item.currentView = "stats"
+      else Qt.callLater(function() { if (panelLoader.item) panelLoader.item.currentView = "stats" })
+    }
+    function status(): string {
+      var stateLbl = Model.stateLabel(Service.state)
+      var modeStr = Service.running ? "Running" : "Paused"
+      return modeStr + " [" + stateLbl + "]: " + Model.formatTime(Service.remainingSeconds)
+        + " (Session " + (Service.sessionIndex + 1) + "/" + Service.maxSessions + ")"
+    }
+    function statusJson(): string {
       return JSON.stringify({
-        todayDate: Service.todayDate,
-        todayFocusSeconds: Service.todayFocusSeconds,
-        todayCompletedSessions: Service.todayCompletedSessions,
-        streakDays: Service.streakDays,
-        lastActiveDate: Service.lastActiveDate,
-        totalFocusSeconds: Service.totalFocusSeconds,
-        totalCompletedSessionsLifetime: Service.totalCompletedSessionsLifetime,
-        weeklyHistory: Service.getWeeklyHistory()
+        state: Service.state,
+        stateLabel: Model.stateLabel(Service.state),
+        running: Service.running,
+        remainingSeconds: Service.remainingSeconds,
+        totalSeconds: Service.totalSeconds,
+        sessionIndex: Service.sessionIndex,
+        completedSessions: Service.completedSessions,
+        maxSessions: Service.maxSessions,
+        workflowMode: Service.workflowMode,
+        soundEnabled: Service.soundEnabled,
+        soundVolume: Service.soundVolume,
+        soundTheme: Service.soundTheme,
+        notificationsEnabled: Service.notificationsEnabled,
+        autoStartBreaks: Service.autoStartBreaks,
+        autoStartWork: Service.autoStartWork
       })
     }
+    function statsSummary(): string { return Service.statsSummary("day") }
+    function stats(period: string): string { return Service.statsSummary(period) }
+    function statsJson(period: string): string { return JSON.stringify(Service.getStatsObject(period)) }
   }
 
   WidgetButton {

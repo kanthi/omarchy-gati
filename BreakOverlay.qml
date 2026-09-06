@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
@@ -76,7 +77,19 @@ PanelWindow {
     focus: overlayWindow.visible
 
     Keys.onPressed: function(event) {
-      if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_S || event.key === Qt.Key_C) {
+      if (event.key === Qt.Key_Space) {
+        if (Service.breakComplete) {
+          Service.continueToNextFocus()
+        } else {
+          Service.toggle()
+        }
+        event.accepted = true
+      } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_C) {
+        if (Service.breakComplete) {
+          Service.continueToNextFocus()
+        }
+        event.accepted = true
+      } else if (event.key === Qt.Key_Escape || event.key === Qt.Key_S) {
         if (Service.breakComplete) {
           Service.continueToNextFocus()
         } else {
@@ -86,41 +99,129 @@ PanelWindow {
       } else if (event.key === Qt.Key_E) {
         Service.extendBreak(5)
         event.accepted = true
+      } else if (event.key === Qt.Key_M) {
+        Service.soundEnabled = !Service.soundEnabled
+        Service.saveState()
+        if (Service.soundEnabled) Service.playSound("tick")
+        event.accepted = true
       }
     }
   }
 
   // Primary Center Stage: Zen Rhythm Break Card (Matching Panel.qml Paradigm D)
   Rectangle {
+    id: breakCard
     anchors.centerIn: parent
-    width: Style.space(380)
-    implicitHeight: cardContent.implicitHeight + Style.space(32)
-    radius: Style.cornerRadius
-    color: Qt.rgba(0.08, 0.10, 0.13, 0.88)
-    border.color: Qt.rgba(1, 1, 1, 0.16)
+    width: Style.space(620)
+    implicitHeight: cardContent.implicitHeight + Style.space(52)
+    height: implicitHeight
+    radius: Style.space(18)
+    color: Qt.rgba(0.03, 0.05, 0.08, 0.15)
+    border.color: Qt.rgba(1, 1, 1, 0.22)
     border.width: 1
+
+    // Top-Right Sound On/Off Indicator Button
+    Rectangle {
+      id: soundButton
+      anchors.top: parent.top
+      anchors.right: parent.right
+      anchors.topMargin: Style.space(14)
+      anchors.rightMargin: Style.space(16)
+      z: 10
+
+      // Offscreen text measurements to lock pill dimensions across both states
+      Text {
+        id: measureSoundOn
+        visible: false
+        text: "Sound On"
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption - 1
+        font.bold: true
+      }
+      Text {
+        id: measureMuted
+        visible: false
+        text: "Muted"
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption - 1
+        font.bold: true
+      }
+      Text {
+        id: measureIcon
+        visible: false
+        text: "󰕾"
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption + 1
+      }
+      readonly property real requiredWidth: Math.max(measureSoundOn.implicitWidth, measureMuted.implicitWidth) + measureIcon.implicitWidth + Style.space(5) + Style.space(22)
+      width: Math.max(Style.space(94), requiredWidth)
+      height: Style.space(26)
+      radius: height / 2.0
+      color: soundMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+      border.color: soundMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.35) : Qt.rgba(1, 1, 1, 0.18)
+      border.width: 1
+
+      Behavior on color { ColorAnimation { duration: 120 } }
+      Behavior on border.color { ColorAnimation { duration: 120 } }
+
+      Row {
+        id: soundRow
+        anchors.centerIn: parent
+        spacing: Style.space(5)
+
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          text: Service.soundEnabled ? "󰕾" : "󰝟"
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption + 1
+          color: Service.soundEnabled ? overlayWindow.breakColor : Qt.rgba(1, 1, 1, 0.42)
+        }
+
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          text: Service.soundEnabled ? "Sound On" : "Muted"
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption - 1
+          font.bold: true
+          color: Service.soundEnabled ? overlayWindow.breakColor : Qt.rgba(1, 1, 1, 0.55)
+        }
+      }
+
+      MouseArea {
+        id: soundMouse
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+          Service.soundEnabled = !Service.soundEnabled
+          Service.saveState()
+          if (Service.soundEnabled) Service.playSound("tick")
+        }
+      }
+    }
 
     Column {
       id: cardContent
       anchors.centerIn: parent
-      width: parent.width - Style.space(32)
-      spacing: Style.space(16)
+      width: parent.width - Style.space(56)
+      spacing: Style.space(26)
 
       // 1. Top Header Row: Time & Phase Title + Floating Session Dots
       Item {
         width: parent.width
-        height: Style.space(42)
+        height: Style.space(120)
 
         // Left: Large Countdown + Uppercase Subtitle
         Column {
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(1)
+          spacing: Style.space(4)
 
           Text {
+            id: clockText
             text: Service.breakComplete ? "00:00" : Model.formatTime(Service.remainingSeconds)
             font.family: Style.font.family
-            font.pixelSize: Style.font.title + 16
+            font.pixelSize: (Style.font.title + 42) * 2
             font.bold: true
             color: Color.foreground
             style: Text.Sunken
@@ -130,9 +231,9 @@ PanelWindow {
           Text {
             text: Service.breakComplete ? "BREAK COMPLETE" : Model.stateLabel(Service.state).toUpperCase()
             font.family: Style.font.family
-            font.pixelSize: Style.font.caption - 1
+            font.pixelSize: Style.font.subtitle
             font.bold: true
-            font.letterSpacing: 1.1
+            font.letterSpacing: 1.6
             color: overlayWindow.breakColor
             style: Text.Sunken
             styleColor: Qt.rgba(0, 0, 0, 0.85)
@@ -143,7 +244,7 @@ PanelWindow {
         Row {
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(6)
+          spacing: Style.space(9)
 
           Repeater {
             model: Service.maxSessions
@@ -152,8 +253,8 @@ PanelWindow {
               required property int index
               readonly property bool isCompleted: index < Service.completedSessions
               readonly property bool isCurrent: !isCompleted && (index === Service.completedSessions)
-              width: isCurrent ? Style.space(6.5) : Style.space(5)
-              height: isCurrent ? Style.space(6.5) : Style.space(5)
+              width: isCurrent ? Style.space(9.5) : Style.space(7)
+              height: isCurrent ? Style.space(9.5) : Style.space(7)
               radius: width / 2.0
               anchors.verticalCenter: parent.verticalCenter
               color: isCompleted ? overlayWindow.breakColor : Qt.rgba(1, 1, 1, 0.18)
@@ -166,14 +267,14 @@ PanelWindow {
         }
       }
 
-      // 2. Center Stage: Ambient Kinetic Zen Rhythm Bar (Harmonic Waveform)
+      // 2. Center Stage: Ambient Kinetic Zen Rhythm Bar (Gati Infinity Icon Waveform)
       Item {
         id: waveContainer
         width: parent.width
-        height: Style.space(52)
+        height: Style.space(76)
 
         property real wavePhase: 0.0
-        readonly property int barCount: 28
+        readonly property int barCount: 38
 
         Timer {
           interval: 33
@@ -189,26 +290,141 @@ PanelWindow {
           Repeater {
             model: waveContainer.barCount
 
-            Rectangle {
+            Item {
+              id: colDelegate
               required property int index
               readonly property real normX: index / (waveContainer.barCount - 1)
-              readonly property real sineEnv: Math.sin(normX * Math.PI)
+              readonly property real gatiEnv: Model.gatiWaveEnvelope(normX)
               readonly property bool isElapsed: Service.progressFraction > 0.0 && normX <= Service.progressFraction
 
+              readonly property real amp: (Service.running && !Service.breakComplete)
+                ? Math.max(0.0, Math.min(1.0, gatiEnv * (0.45 + 0.55 * Math.sin(waveContainer.wavePhase * 2.2 + normX * 6.2))))
+                : (gatiEnv * 0.95)
+
+              readonly property int level: {
+                if (amp < 0.16) return 0
+                if (amp < 0.38) return 1
+                if (amp < 0.62) return 2
+                if (amp < 0.86) return 3
+                return 4
+              }
+
               width: Math.max(3, (waveContainer.width - (waveContainer.barCount - 1) * Style.space(4)) / waveContainer.barCount)
-              radius: width / 2.0
-              anchors.verticalCenter: parent.verticalCenter
+              height: waveContainer.height
 
-              height: Service.running && !Service.breakComplete
-                ? Math.max(Style.space(6), Style.space(8) + (Style.space(42) * sineEnv * (0.45 + 0.55 * Math.sin(waveContainer.wavePhase * 2.2 + normX * 6.2))))
-                : Math.max(Style.space(6), Style.space(8) + (Style.space(26) * sineEnv))
+              readonly property real segH: Style.space(5)
+              readonly property real segG: Style.space(2.2)
+              readonly property real centerY: waveContainer.height / 2.0
+              readonly property color segColor: colDelegate.isElapsed ? overlayWindow.breakColor : Qt.rgba(1, 1, 1, 0.20)
 
-              color: isElapsed
-                ? overlayWindow.breakColor
-                : Qt.rgba(1, 1, 1, 0.10)
+              // Center Baseline Dot (level === 0)
+              Rectangle {
+                visible: colDelegate.level === 0
+                anchors.centerIn: parent
+                width: Math.min(parent.width, Style.space(3.2))
+                height: Style.space(3.2)
+                radius: width / 2.0
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
 
-              Behavior on color {
-                ColorAnimation { duration: 250 }
+              // Center Baseline Segment (level > 0)
+              Rectangle {
+                visible: colDelegate.level > 0
+                anchors.centerIn: parent
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
+
+              // Tier 1 (1 step above / below)
+              Rectangle {
+                visible: colDelegate.level >= 1
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Math.round(colDelegate.centerY - (colDelegate.segH + colDelegate.segG) - colDelegate.segH / 2.0)
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
+              Rectangle {
+                visible: colDelegate.level >= 1
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Math.round(colDelegate.centerY + (colDelegate.segH + colDelegate.segG) - colDelegate.segH / 2.0)
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
+
+              // Tier 2 (2 steps above / below)
+              Rectangle {
+                visible: colDelegate.level >= 2
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Math.round(colDelegate.centerY - (2 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
+              Rectangle {
+                visible: colDelegate.level >= 2
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Math.round(colDelegate.centerY + (2 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
+
+              // Tier 3 (3 steps above / below)
+              Rectangle {
+                visible: colDelegate.level >= 3
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Math.round(colDelegate.centerY - (3 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
+              Rectangle {
+                visible: colDelegate.level >= 3
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Math.round(colDelegate.centerY + (3 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
+
+              // Tier 4 (4 steps above / below)
+              Rectangle {
+                visible: colDelegate.level >= 4
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Math.round(colDelegate.centerY - (4 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
+              }
+              Rectangle {
+                visible: colDelegate.level >= 4
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: Math.round(colDelegate.centerY + (4 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
+                width: parent.width
+                height: colDelegate.segH
+                radius: Style.space(1)
+                color: colDelegate.segColor
+                Behavior on color { ColorAnimation { duration: 200 } }
               }
             }
           }
@@ -218,19 +434,19 @@ PanelWindow {
       // 3. Bottom Action Controls
       Item {
         width: parent.width
-        height: Style.space(34)
+        height: Style.space(46)
 
         // State A: Break Running Controls
         Row {
           visible: !Service.breakComplete
           anchors.centerIn: parent
-          spacing: Style.space(12)
+          spacing: Style.space(16)
 
           // Extend +5 Min Button
           Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(64)
-            height: Style.space(34)
+            width: Style.space(96)
+            height: Style.space(44)
             radius: Style.cornerRadius
             color: extMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
             border.color: extMouse.containsMouse ? Color.foreground : Qt.rgba(1, 1, 1, 0.22)
@@ -243,7 +459,7 @@ PanelWindow {
               anchors.centerIn: parent
               text: "+5 min"
               font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              font.pixelSize: Style.font.body
               font.bold: true
               color: Color.foreground
               horizontalAlignment: Text.AlignHCenter
@@ -262,8 +478,8 @@ PanelWindow {
           // Primary Play / Pause Pill Button
           Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(58)
-            height: Style.space(34)
+            width: Style.space(80)
+            height: Style.space(44)
             radius: Style.cornerRadius
             color: playMouse.containsMouse
               ? Util.alpha(overlayWindow.breakColor, 0.22)
@@ -281,7 +497,7 @@ PanelWindow {
               anchors.horizontalCenterOffset: Service.running ? 0 : 1
               text: Service.running ? "󰏤" : "󰐊"
               font.family: Style.font.family
-              font.pixelSize: Style.font.title
+              font.pixelSize: Style.font.title + 4
               color: overlayWindow.breakColor
               horizontalAlignment: Text.AlignHCenter
               verticalAlignment: Text.AlignVCenter
@@ -299,8 +515,8 @@ PanelWindow {
           // Skip Break Button
           Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(64)
-            height: Style.space(34)
+            width: Style.space(96)
+            height: Style.space(44)
             radius: Style.cornerRadius
             color: skpMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
             border.color: skpMouse.containsMouse ? Color.foreground : Qt.rgba(1, 1, 1, 0.22)
@@ -313,7 +529,7 @@ PanelWindow {
               anchors.centerIn: parent
               text: "Skip"
               font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              font.pixelSize: Style.font.body
               font.bold: true
               color: Color.foreground
               horizontalAlignment: Text.AlignHCenter
@@ -334,13 +550,13 @@ PanelWindow {
         Row {
           visible: Service.breakComplete
           anchors.centerIn: parent
-          spacing: Style.space(12)
+          spacing: Style.space(16)
 
           // Primary Continue / Begin Focus Pill
           Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(160)
-            height: Style.space(34)
+            width: Style.space(210)
+            height: Style.space(46)
             radius: Style.cornerRadius
             color: contMouse.containsMouse
               ? Qt.lighter(overlayWindow.breakColor, 1.08)
@@ -350,13 +566,13 @@ PanelWindow {
 
             Row {
               anchors.centerIn: parent
-              spacing: Style.space(6)
+              spacing: Style.space(8)
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "󰐊"
                 font.family: Style.font.family
-                font.pixelSize: Style.font.body
+                font.pixelSize: Style.font.title
                 color: Qt.rgba(0.08, 0.12, 0.1, 1.0)
               }
 
@@ -364,7 +580,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Start Focus"
                 font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                font.pixelSize: Style.font.body
                 font.bold: true
                 color: Qt.rgba(0.08, 0.12, 0.1, 1.0)
               }
@@ -382,8 +598,8 @@ PanelWindow {
           // Secondary Extend +5m
           Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(64)
-            height: Style.space(34)
+            width: Style.space(96)
+            height: Style.space(46)
             radius: Style.cornerRadius
             color: extMoreMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
             border.color: extMoreMouse.containsMouse ? Color.foreground : Qt.rgba(1, 1, 1, 0.22)
@@ -396,7 +612,7 @@ PanelWindow {
               anchors.centerIn: parent
               text: "+5 min"
               font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              font.pixelSize: Style.font.body
               font.bold: true
               color: Color.foreground
               horizontalAlignment: Text.AlignHCenter
