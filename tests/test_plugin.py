@@ -41,7 +41,7 @@ class TestManifest(unittest.TestCase):
     def test_version_semver(self) -> None:
         version = self.manifest["version"]
         self.assertRegex(version, SEMVER_RE, f"Version '{version}' is not valid SemVer")
-        self.assertEqual(version, "0.0.9")
+        self.assertEqual(version, "0.0.12")
 
     def test_kinds_and_entry_points(self) -> None:
         self.assertEqual(self.manifest["kinds"], ["bar-widget"])
@@ -79,6 +79,7 @@ class TestRepositoryFiles(unittest.TestCase):
             "BarWidget.qml",
             "BreakOverlay.qml",
             "Panel.qml",
+            "WaveVisualizer.qml",
             "Service.qml",
             "Model.js",
             "qmldir",
@@ -141,9 +142,9 @@ class TestSafeStateIo(unittest.TestCase):
         }
         json_str = json.dumps(payload)
 
-        # Write
         res_write = subprocess.run(
-            [sys.executable, str(self.script), "write", str(self.test_file), json_str],
+            [sys.executable, str(self.script), "write", str(self.test_file)],
+            input=json_str,
             capture_output=True,
             text=True,
             check=False,
@@ -186,16 +187,28 @@ class TestSafeStateIo(unittest.TestCase):
 
     def test_traversal_rejection(self) -> None:
         res = subprocess.run(
-            [sys.executable, str(self.script), "write", "/etc/dangerous_state.json", '{"a": 1}'],
+            [sys.executable, str(self.script), "write", "/etc/dangerous_state.json"],
+            input='{"a": 1}',
             capture_output=True,
             text=True,
             check=False,
         )
         self.assertNotEqual(res.returncode, 0, "safe_state_io must reject paths outside home/xdg_state")
 
+    def test_argv_payload_rejected(self) -> None:
+        res = subprocess.run(
+            [sys.executable, str(self.script), "write", str(self.test_file), '{"a": 1}'],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(res.returncode, 0, "safe_state_io must reject write payloads on argv")
+        self.assertFalse(self.test_file.exists(), "argv payload must not create the state file")
+
     def test_invalid_json_rejection(self) -> None:
         res = subprocess.run(
-            [sys.executable, str(self.script), "write", str(self.test_file), "{invalid_json"],
+            [sys.executable, str(self.script), "write", str(self.test_file)],
+            input="{invalid_json",
             capture_output=True,
             text=True,
             check=False,
@@ -221,6 +234,28 @@ class TestModelJs(unittest.TestCase):
         if (formatHoursDecimal(5400) !== "1.5h") throw new Error("formatHoursDecimal failed");
         if (stateLabel(STATE_WORK) !== "Focus") throw new Error("stateLabel failed");
         if (typeof gatiWaveEnvelope(0.5) !== "number") throw new Error("gatiWaveEnvelope failed");
+        if (gatiWaveEnvelope(0.5) >= gatiWaveEnvelope(0.25)) throw new Error("envelope should pinch at center");
+        if (clamp01(1.4) !== 1.0 || clamp01(-0.2) !== 0.0) throw new Error("clamp01 failed");
+        const glowMid = progressGlow(0.2, 0.5);
+        const glowAhead = progressGlow(0.9, 0.5);
+        if (!(glowMid > glowAhead)) throw new Error("progressGlow should be brighter behind the leading edge");
+        const breatheA = waveY(0.0, 0.0);
+        const breatheB = waveY(0.25, 0.0);
+        if (typeof breatheA !== "number" || breatheA < 0 || breatheA > 1) throw new Error("waveY breathe range");
+        if (Math.abs(breatheA - breatheB) < 0.02) throw new Error("breathe swell should vary across x");
+        if (dailyGoalSessions(4) !== 8) throw new Error("classic daily goal should be two cycles");
+        if (dailyGoalSessions(2) !== 4) throw new Error("ultra daily goal should be two cycles");
+        if (dailyGoalSessions(16) !== 12) throw new Error("daily goal should cap at 12");
+        if (goalPercent(4, 8) !== 50) throw new Error("goalPercent 4/8");
+        if (cycleSessionNumber(0, 4) !== 1) throw new Error("cycleSessionNumber lower bound");
+        if (cycleSessionNumber(9, 4) !== 4) throw new Error("cycleSessionNumber should not exceed cycle");
+        if (sanitizeWorkflowMode("nope") !== "classic") throw new Error("sanitizeWorkflowMode fallback");
+        const blocks = sanitizeTodayBlocks(
+          [{{ pomo: "completed", break: "active", pomoDuration: 25, breakDuration: 5 }}, {{ pomo: "hacked" }}, "x"].concat(Array(40).fill({{ pomo: "completed" }})),
+          25, 5, 15, 4
+        );
+        if (blocks.length > MAX_TODAY_BLOCKS) throw new Error("todayBlocks must be capped");
+        if (blocks[0].break !== "pending") throw new Error("transient block status must not persist");
         if (last28DaysIso().length !== 28) throw new Error("last28DaysIso failed");
         console.log("ALL_JS_TESTS_PASSED");
         """

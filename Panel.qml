@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Shapes
 import Quickshell
 import qs.Commons
 import qs.Ui
@@ -302,168 +301,14 @@ Panel {
             }
           }
 
-          // Center Stage: Ambient Kinetic Zen Rhythm Bar (Gati Infinity Icon Waveform)
-          Item {
-            id: waveContainer
+          // Center Stage: Slow ocean swell (same language as the break overlay)
+          WaveVisualizer {
             width: parent.width
-            height: Style.space(70)
-
-            property real wavePhase: 0.0
-            readonly property int barCount: 28
-
-            Timer {
-              interval: 33
-              running: panel.open && Service.running
-              repeat: true
-              onTriggered: waveContainer.wavePhase += 0.08
-            }
-
-            Row {
-              anchors.centerIn: parent
-              spacing: Style.space(4)
-
-              Repeater {
-                model: waveContainer.barCount
-
-                Item {
-                  id: colDelegate
-                  required property int index
-                  readonly property real normX: index / (waveContainer.barCount - 1)
-                  readonly property real gatiEnv: Model.gatiWaveEnvelope(normX)
-                  readonly property bool isElapsed: Service.progressFraction > 0.0 && normX <= Service.progressFraction
-
-                  readonly property real amp: Service.running
-                    ? Math.max(0.0, Math.min(1.0, gatiEnv * (0.45 + 0.55 * Math.sin(waveContainer.wavePhase * 2.2 + normX * 6.2))))
-                    : (gatiEnv * 0.95)
-
-                  readonly property int level: {
-                    if (amp < 0.16) return 0
-                    if (amp < 0.38) return 1
-                    if (amp < 0.62) return 2
-                    if (amp < 0.86) return 3
-                    return 4
-                  }
-
-                  width: Math.max(3, (waveContainer.width - (waveContainer.barCount - 1) * Style.space(4)) / waveContainer.barCount)
-                  height: waveContainer.height
-
-                  readonly property real segH: Style.space(4.5)
-                  readonly property real segG: Style.space(2)
-                  readonly property real centerY: waveContainer.height / 2.0
-                  readonly property color segColor: colDelegate.isElapsed ? root.activePhaseColor : Qt.rgba(1, 1, 1, 0.20)
-
-                  // Center Baseline Dot (level === 0)
-                  Rectangle {
-                    visible: colDelegate.level === 0
-                    anchors.centerIn: parent
-                    width: Math.min(parent.width, Style.space(3))
-                    height: Style.space(3)
-                    radius: width / 2.0
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-
-                  // Center Baseline Segment (level > 0)
-                  Rectangle {
-                    visible: colDelegate.level > 0
-                    anchors.centerIn: parent
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-
-                  // Tier 1 (1 step above / below)
-                  Rectangle {
-                    visible: colDelegate.level >= 1
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round(colDelegate.centerY - (colDelegate.segH + colDelegate.segG) - colDelegate.segH / 2.0)
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-                  Rectangle {
-                    visible: colDelegate.level >= 1
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round(colDelegate.centerY + (colDelegate.segH + colDelegate.segG) - colDelegate.segH / 2.0)
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-
-                  // Tier 2 (2 steps above / below)
-                  Rectangle {
-                    visible: colDelegate.level >= 2
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round(colDelegate.centerY - (2 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-                  Rectangle {
-                    visible: colDelegate.level >= 2
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round(colDelegate.centerY + (2 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-
-                  // Tier 3 (3 steps above / below)
-                  Rectangle {
-                    visible: colDelegate.level >= 3
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round(colDelegate.centerY - (3 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-                  Rectangle {
-                    visible: colDelegate.level >= 3
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round(colDelegate.centerY + (3 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-
-                  // Tier 4 (4 steps above / below)
-                  Rectangle {
-                    visible: colDelegate.level >= 4
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round(colDelegate.centerY - (4 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-                  Rectangle {
-                    visible: colDelegate.level >= 4
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round(colDelegate.centerY + (4 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                    width: parent.width
-                    height: colDelegate.segH
-                    radius: Style.space(1)
-                    color: colDelegate.segColor
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                  }
-                }
-              }
-            }
+            height: Style.space(110)
+            running: Service.running
+            complete: false
+            progressFraction: Service.progressFraction
+            phaseColor: root.activePhaseColor
           }
 
           // Bottom Action Control Strip
@@ -682,6 +527,8 @@ Panel {
             spacing: Style.space(10)
 
             property string selectedPeriod: "daily"
+            readonly property int dailyGoal: Service.dailyGoalSessions
+            readonly property int trackCount: Math.max(1, Service.todayDisplayBlocks.length)
 
             // 1. Sleek 4-Way Segmented Period Selector
             Rectangle {
@@ -795,7 +642,7 @@ Panel {
                       Text {
                         text: {
                           switch (statsRoot.selectedPeriod) {
-                            case "daily": return "FOCUS (" + Service.todayCompletedSessions + "/8 SESS)"
+                            case "daily": return "FOCUS (" + Service.todayCompletedSessions + "/" + Service.dailyGoalSessions + " SESS)"
                             case "weekly": return "PAST 7 DAYS"
                             case "monthly": return Model.currentMonthName().toUpperCase()
                             case "yearly": return Model.currentYearName() + " TOTAL"
@@ -913,7 +760,7 @@ Panel {
                     text: {
                       switch (statsRoot.selectedPeriod) {
                         case "daily":
-                          return Math.min(100, Math.round((Service.todayCompletedSessions / 8) * 100)) + "% of daily goal"
+                          return Model.goalPercent(Service.todayCompletedSessions, Service.dailyGoalSessions) + "% of daily goal"
                         case "weekly":
                           return Service.getWeeklyActiveDaysCount() + " / 7 days active"
                         case "monthly":
@@ -967,7 +814,9 @@ Panel {
                   Text {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Service.todayCompletedSessions >= 8 ? "Goal Achieved! 󰄳" : (8 - Service.todayCompletedSessions) + " to daily goal"
+                    text: Service.todayCompletedSessions >= Service.dailyGoalSessions
+                      ? "Goal Achieved! 󰄳"
+                      : (Service.dailyGoalSessions - Service.todayCompletedSessions) + " to daily goal"
                     font.family: bar ? bar.fontFamily : Style.font.family
                     font.pixelSize: Style.font.caption - 1
                     font.bold: true
@@ -998,7 +847,7 @@ Panel {
                       required property var modelData
                       required property int index
 
-                      width: Math.floor((parent.width - Style.space(44) - 7 * Style.space(4)) / 8)
+                      width: Math.max(6, Math.floor((parent.width - Style.space(44) - (statsRoot.trackCount - 1) * Style.space(4)) / statsRoot.trackCount))
                       height: Style.space(16)
                       radius: Style.space(4)
 
@@ -1053,7 +902,7 @@ Panel {
                       required property var modelData
                       required property int index
 
-                      width: Math.floor((parent.width - Style.space(44) - 7 * Style.space(4)) / 8)
+                      width: Math.max(6, Math.floor((parent.width - Style.space(44) - (statsRoot.trackCount - 1) * Style.space(4)) / statsRoot.trackCount))
                       height: Style.space(16)
                       radius: Style.space(4)
 
@@ -1096,17 +945,18 @@ Panel {
                   }
 
                   Repeater {
-                    model: 8
+                    model: statsRoot.trackCount
 
                     Text {
                       required property int index
-                      width: Math.floor((parent.width - Style.space(44) - 7 * Style.space(4)) / 8)
+                      readonly property bool isLongBreak: ((index + 1) % Service.maxSessions) === 0
+                      width: Math.max(6, Math.floor((parent.width - Style.space(44) - (statsRoot.trackCount - 1) * Style.space(4)) / statsRoot.trackCount))
                       horizontalAlignment: Text.AlignHCenter
-                      text: (index === 3 || index === 7) ? ((index + 1) + "★") : ("" + (index + 1))
+                      text: isLongBreak ? ((index + 1) + "★") : ("" + (index + 1))
                       font.family: bar ? bar.fontFamily : Style.font.family
                       font.pixelSize: Style.font.caption - 4
-                      font.bold: (index === 3 || index === 7)
-                      color: (index === 3 || index === 7) ? root.settingActiveColor : Qt.rgba(1, 1, 1, 0.35)
+                      font.bold: isLongBreak
+                      color: isLongBreak ? root.settingActiveColor : Qt.rgba(1, 1, 1, 0.35)
                     }
                   }
                 }
@@ -1120,11 +970,11 @@ Panel {
                       return "☕ Break in progress · " + Model.formatTime(Service.remainingSeconds) + " remaining"
                     } else if (Service.state === Model.STATE_WORK && Service.running) {
                       return "🎯 Focus session in progress · " + Model.formatTime(Service.remainingSeconds) + " remaining"
-                    } else if (Service.todayCompletedSessions >= 8) {
+                    } else if (Service.todayCompletedSessions >= Service.dailyGoalSessions) {
                       return "🎉 Daily goal achieved! Excellent focus rhythm today."
                     } else {
                       var nextSess = Service.todayCompletedSessions + 1
-                      return "Next: Focus Session " + nextSess + " of 8 (" + Service.workDurationMin + " min)"
+                      return "Next: Focus Session " + nextSess + " of " + Service.dailyGoalSessions + " (" + Service.workDurationMin + " min)"
                     }
                   }
                   font.family: bar ? bar.fontFamily : Style.font.family

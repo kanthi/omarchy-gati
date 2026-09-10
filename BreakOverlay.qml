@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Effects
-import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
@@ -267,168 +266,14 @@ PanelWindow {
         }
       }
 
-      // 2. Center Stage: Ambient Kinetic Zen Rhythm Bar (Gati Infinity Icon Waveform)
-      Item {
-        id: waveContainer
+      // 2. Center Stage: Slow ocean swell
+      WaveVisualizer {
         width: parent.width
-        height: Style.space(76)
-
-        property real wavePhase: 0.0
-        readonly property int barCount: 38
-
-        Timer {
-          interval: 33
-          running: overlayWindow.visible && Service.running && !Service.breakComplete
-          repeat: true
-          onTriggered: waveContainer.wavePhase += 0.08
-        }
-
-        Row {
-          anchors.centerIn: parent
-          spacing: Style.space(4)
-
-          Repeater {
-            model: waveContainer.barCount
-
-            Item {
-              id: colDelegate
-              required property int index
-              readonly property real normX: index / (waveContainer.barCount - 1)
-              readonly property real gatiEnv: Model.gatiWaveEnvelope(normX)
-              readonly property bool isElapsed: Service.progressFraction > 0.0 && normX <= Service.progressFraction
-
-              readonly property real amp: (Service.running && !Service.breakComplete)
-                ? Math.max(0.0, Math.min(1.0, gatiEnv * (0.45 + 0.55 * Math.sin(waveContainer.wavePhase * 2.2 + normX * 6.2))))
-                : (gatiEnv * 0.95)
-
-              readonly property int level: {
-                if (amp < 0.16) return 0
-                if (amp < 0.38) return 1
-                if (amp < 0.62) return 2
-                if (amp < 0.86) return 3
-                return 4
-              }
-
-              width: Math.max(3, (waveContainer.width - (waveContainer.barCount - 1) * Style.space(4)) / waveContainer.barCount)
-              height: waveContainer.height
-
-              readonly property real segH: Style.space(5)
-              readonly property real segG: Style.space(2.2)
-              readonly property real centerY: waveContainer.height / 2.0
-              readonly property color segColor: colDelegate.isElapsed ? overlayWindow.breakColor : Qt.rgba(1, 1, 1, 0.20)
-
-              // Center Baseline Dot (level === 0)
-              Rectangle {
-                visible: colDelegate.level === 0
-                anchors.centerIn: parent
-                width: Math.min(parent.width, Style.space(3.2))
-                height: Style.space(3.2)
-                radius: width / 2.0
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-
-              // Center Baseline Segment (level > 0)
-              Rectangle {
-                visible: colDelegate.level > 0
-                anchors.centerIn: parent
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-
-              // Tier 1 (1 step above / below)
-              Rectangle {
-                visible: colDelegate.level >= 1
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: Math.round(colDelegate.centerY - (colDelegate.segH + colDelegate.segG) - colDelegate.segH / 2.0)
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-              Rectangle {
-                visible: colDelegate.level >= 1
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: Math.round(colDelegate.centerY + (colDelegate.segH + colDelegate.segG) - colDelegate.segH / 2.0)
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-
-              // Tier 2 (2 steps above / below)
-              Rectangle {
-                visible: colDelegate.level >= 2
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: Math.round(colDelegate.centerY - (2 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-              Rectangle {
-                visible: colDelegate.level >= 2
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: Math.round(colDelegate.centerY + (2 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-
-              // Tier 3 (3 steps above / below)
-              Rectangle {
-                visible: colDelegate.level >= 3
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: Math.round(colDelegate.centerY - (3 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-              Rectangle {
-                visible: colDelegate.level >= 3
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: Math.round(colDelegate.centerY + (3 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-
-              // Tier 4 (4 steps above / below)
-              Rectangle {
-                visible: colDelegate.level >= 4
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: Math.round(colDelegate.centerY - (4 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-              Rectangle {
-                visible: colDelegate.level >= 4
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: Math.round(colDelegate.centerY + (4 * (colDelegate.segH + colDelegate.segG)) - colDelegate.segH / 2.0)
-                width: parent.width
-                height: colDelegate.segH
-                radius: Style.space(1)
-                color: colDelegate.segColor
-                Behavior on color { ColorAnimation { duration: 200 } }
-              }
-            }
-          }
-        }
+        height: Style.space(168)
+        running: overlayWindow.visible && Service.running && !Service.breakComplete
+        complete: Service.breakComplete
+        progressFraction: Service.progressFraction
+        phaseColor: overlayWindow.breakColor
       }
 
       // 3. Bottom Action Controls

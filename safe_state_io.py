@@ -155,6 +155,14 @@ def cmd_write(path_str: str, payload_bytes: bytes) -> None:
         fd = -1
         os.replace(tmp_path, path)
         tmp_path = None
+        try:
+            dir_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except OSError:
+            pass
     finally:
         if fd >= 0:
             try:
@@ -170,16 +178,15 @@ def cmd_write(path_str: str, payload_bytes: bytes) -> None:
 
 def main(argv: list[str]) -> None:
     if len(argv) < 3:
-        die(1, "usage: safe_state_io.py read|write <path> [json_payload]")
+        die(1, "usage: safe_state_io.py read|write <path>  (write payload on stdin)")
 
     action, path = argv[1], argv[2]
     if action == "read":
         cmd_read(path)
     elif action == "write":
         if len(argv) >= 4:
-            payload = argv[3].encode("utf-8")
-        else:
-            payload = sys.stdin.buffer.read(MAX_BYTES + 1)
+            die(3, "write payload must be supplied on stdin, not argv")
+        payload = sys.stdin.buffer.read(MAX_BYTES + 1)
         cmd_write(path, payload)
     else:
         die(2, f"unknown action: {action}")

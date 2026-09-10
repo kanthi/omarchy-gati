@@ -168,4 +168,91 @@ function gatiWaveEnvelope(normX) {
   return Math.max(0.0, span)
 }
 
+function clamp01(v) {
+  return Math.max(0.0, Math.min(1.0, v))
+}
+
+function smoothstep(edge0, edge1, x) {
+  var span = edge1 - edge0
+  if (span === 0.0) return x < edge0 ? 0.0 : 1.0
+  var t = clamp01((x - edge0) / span)
+  return t * t * (3.0 - 2.0 * t)
+}
+
+// Soft elapsed fill plus a leading glow band. No hard left/right clip.
+function progressGlow(normX, progressFraction) {
+  var p = clamp01(progressFraction)
+  var x = clamp01(normX)
+  var elapsed = 1.0 - smoothstep(p, p + 0.12, x)
+  var band = Math.exp(-Math.pow((x - p) / 0.07, 2.0))
+  return clamp01(0.28 + 0.50 * elapsed + 0.55 * band)
+}
+
+// Continuous ocean-swell sample in 0..1.
+function waveY(normX, phase) {
+  var x = clamp01(normX)
+  var breath = 0.58 + 0.42 * Math.sin(phase)
+  var y = 0.50 + 0.20 * Math.sin(x * Math.PI * 2.0 + phase * 0.70) * breath
+  y += 0.09 * Math.sin(x * Math.PI * 3.15 + phase * 1.12)
+  return clamp01(y)
+}
+
+// Two cycles of the current workflow, capped so the daily track still fits.
+function dailyGoalSessions(maxSessions) {
+  var cycle = Math.max(1, Math.min(16, maxSessions | 0))
+  return Math.max(1, Math.min(12, cycle * 2))
+}
+
+function goalPercent(completed, goal) {
+  var g = Math.max(1, goal | 0)
+  var c = Math.max(0, completed | 0)
+  return Math.min(100, Math.round((c / g) * 100))
+}
+
+function cycleSessionNumber(sessionIndex, maxSessions) {
+  var max = Math.max(1, maxSessions | 0)
+  return Math.min(max, Math.max(1, sessionIndex | 0))
+}
+
+var MAX_TODAY_BLOCKS = 32
+var BLOCK_STATUSES = { completed: true, skipped: true, pending: true }
+var WORKFLOW_MODES = { classic: true, deep: true, ultra: true, custom: true }
+
+function sanitizeWorkflowMode(mode) {
+  if (typeof mode === "string" && WORKFLOW_MODES[mode]) return mode
+  return "classic"
+}
+
+function sanitizeBlockStatus(value) {
+  if (typeof value === "string" && BLOCK_STATUSES[value]) return value
+  return "pending"
+}
+
+function sanitizeTodayBlocks(raw, workMin, shortMin, longMin, maxSessions) {
+  if (!raw || typeof raw.length !== "number") return []
+  var w = Math.min(180, Math.max(1, workMin | 0))
+  var s = Math.min(60, Math.max(1, shortMin | 0))
+  var l = Math.min(120, Math.max(1, longMin | 0))
+  var cycle = Math.max(1, Math.min(16, maxSessions | 0))
+  var n = Math.min(MAX_TODAY_BLOCKS, raw.length)
+  var out = []
+  for (var i = 0; i < n; i++) {
+    var b = raw[i]
+    if (!b || typeof b !== "object") continue
+    var pomoDur = (typeof b.pomoDuration === "number" && isFinite(b.pomoDuration))
+      ? Math.min(180, Math.max(1, Math.floor(b.pomoDuration)))
+      : w
+    var breakDur = (typeof b.breakDuration === "number" && isFinite(b.breakDuration))
+      ? Math.min(120, Math.max(1, Math.floor(b.breakDuration)))
+      : ((out.length % cycle === cycle - 1) ? l : s)
+    out.push({
+      pomo: sanitizeBlockStatus(b.pomo),
+      break: sanitizeBlockStatus(b.break),
+      pomoDuration: pomoDur,
+      breakDuration: breakDur
+    })
+  }
+  return out
+}
+
 

@@ -275,7 +275,7 @@ BarWidget {
       var stateLbl = Model.stateLabel(Service.state)
       var modeStr = Service.running ? "Running" : "Paused"
       return modeStr + " [" + stateLbl + "]: " + Model.formatTime(Service.remainingSeconds)
-        + " (Session " + (Service.sessionIndex + 1) + "/" + Service.maxSessions + ")"
+        + " (Session " + Service.displaySessionNumber + "/" + Service.maxSessions + ")"
     }
     function statusJson(): string {
       return JSON.stringify({

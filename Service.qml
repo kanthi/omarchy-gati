@@ -47,10 +47,12 @@ Item {
   property bool autoStartWork: false
 
   onStateChanged: {
+    if (restoring) return
     breakWarningNotified = false
   }
 
   onWorkDurationMinChanged: {
+    if (restoring) return
     if (!running && (state === Model.STATE_IDLE || state === Model.STATE_WORK)) {
       totalSeconds = workDurationMin * 60
       remainingSeconds = totalSeconds
@@ -58,6 +60,7 @@ Item {
     saveState()
   }
   onShortBreakMinChanged: {
+    if (restoring) return
     if (!running && state === Model.STATE_SHORT_BREAK) {
       totalSeconds = shortBreakMin * 60
       remainingSeconds = totalSeconds
@@ -65,21 +68,22 @@ Item {
     saveState()
   }
   onLongBreakMinChanged: {
+    if (restoring) return
     if (!running && state === Model.STATE_LONG_BREAK) {
       totalSeconds = longBreakMin * 60
       remainingSeconds = totalSeconds
     }
     saveState()
   }
-  onWorkflowModeChanged: saveState()
-  onMaxSessionsChanged: saveState()
-  onResetDailyChanged: saveState()
-  onSoundEnabledChanged: saveState()
-  onSoundVolumeChanged: saveState()
-  onSoundThemeChanged: saveState()
-  onNotificationsEnabledChanged: saveState()
-  onAutoStartBreaksChanged: saveState()
-  onAutoStartWorkChanged: saveState()
+  onWorkflowModeChanged: { if (!restoring) saveState() }
+  onMaxSessionsChanged: { if (!restoring) saveState() }
+  onResetDailyChanged: { if (!restoring) saveState() }
+  onSoundEnabledChanged: { if (!restoring) saveState() }
+  onSoundVolumeChanged: { if (!restoring) saveState() }
+  onSoundThemeChanged: { if (!restoring) saveState() }
+  onNotificationsEnabledChanged: { if (!restoring) saveState() }
+  onAutoStartBreaksChanged: { if (!restoring) saveState() }
+  onAutoStartWorkChanged: { if (!restoring) saveState() }
 
   readonly property var todayDisplayBlocks: {
     var _b = service.todayBlocks
@@ -97,6 +101,8 @@ Item {
   readonly property bool isBreakState: state === Model.STATE_SHORT_BREAK || state === Model.STATE_LONG_BREAK
   readonly property bool isBreakOverlayVisible: isBreakState || breakComplete
   readonly property real progressFraction: totalSeconds > 0 ? (totalSeconds - remainingSeconds) / totalSeconds : 0.0
+  readonly property int dailyGoalSessions: Model.dailyGoalSessions(maxSessions)
+  readonly property int displaySessionNumber: Model.cycleSessionNumber(sessionIndex, maxSessions)
 
   readonly property string statePath: {
     var base = Quickshell.env("XDG_STATE_HOME")
@@ -112,8 +118,13 @@ Item {
   }
 
   property bool stateLoaded: false
+  property bool restoring: false
   property bool isWriting: false
   property var pendingWritePayload: null
+  property int soundAttempt: 0
+  property bool soundFallingBack: false
+  property string soundPath: ""
+  property string soundVol: "0.80"
 
   Process {
     id: readProc
@@ -133,14 +144,23 @@ Item {
 
   Process {
     id: writeProc
+    stdinEnabled: true
+    property string payload: ""
     stdout: StdioCollector {
       waitForEnd: true
     }
     stderr: StdioCollector {
       waitForEnd: true
     }
+    onStarted: {
+      if (writeProc.payload.length > 0)
+        writeProc.write(writeProc.payload)
+      writeProc.payload = ""
+      writeProc.stdinEnabled = false
+    }
     onExited: function(exitCode) {
       service.isWriting = false
+      writeProc.stdinEnabled = true
       if (service.pendingWritePayload !== null) {
         var next = service.pendingWritePayload
         service.pendingWritePayload = null
@@ -152,7 +172,9 @@ Item {
   function executeWrite(payload) {
     if (!payload || service.ioScript.length === 0) return
     service.isWriting = true
-    writeProc.command = ["python3", service.ioScript, "write", service.statePath, payload]
+    writeProc.payload = payload
+    writeProc.stdinEnabled = true
+    writeProc.command = ["python3", service.ioScript, "write", service.statePath]
     writeProc.running = true
   }
 
@@ -165,6 +187,13 @@ Item {
 
   Process {
     id: soundProc
+    onExited: function(exitCode) {
+      if (exitCode !== 0)
+        service.advanceSoundFallback()
+    }
+    onErrorOccurred: function(error) {
+      service.advanceSoundFallback()
+    }
   }
 
   Process {
@@ -183,24 +212,41 @@ Item {
       else if (service.soundTheme === "marimba") filename = "marimba.wav"
       else filename = "zen_bell.wav"
     }
-    var filePath = service.soundsDir + "/" + filename
-    var vol = Math.max(0.05, Math.min(1.0, (service.soundVolume || 80) / 100.0))
-    if (soundProc.running) {
+    service.soundPath = service.soundsDir + "/" + filename
+    service.soundVol = Math.max(0.05, Math.min(1.0, (service.soundVolume || 80) / 100.0)).toFixed(2)
+    service.soundAttempt = 0
+    service.startSoundAttempt()
+  }
+
+  function startSoundAttempt() {
+    if (soundProc.running)
       soundProc.running = false
-    }
-    soundProc.command = [
-      "bash", "-c",
-      "pw-play --volume \"$1\" \"$2\" 2>/dev/null || paplay \"$2\" 2>/dev/null || aplay \"$2\" 2>/dev/null",
-      "gati-sound",
-      vol.toFixed(2),
-      filePath
-    ]
+    if (service.soundAttempt === 0)
+      soundProc.command = ["pw-play", "--volume", service.soundVol, service.soundPath]
+    else if (service.soundAttempt === 1)
+      soundProc.command = ["paplay", service.soundPath]
+    else if (service.soundAttempt === 2)
+      soundProc.command = ["aplay", "-q", service.soundPath]
+    else
+      return
     soundProc.running = true
+  }
+
+  function advanceSoundFallback() {
+    if (service.soundFallingBack || service.soundAttempt >= 2) return
+    service.soundFallingBack = true
+    service.soundAttempt += 1
+    Qt.callLater(function() {
+      service.soundFallingBack = false
+      service.startSoundAttempt()
+    })
   }
 
   function sendNotification(title, message, urgency) {
     if (!service.notificationsEnabled) return
-    var urg = urgency || "normal"
+    var urg = (urgency === "low" || urgency === "critical") ? urgency : "normal"
+    var safeTitle = (typeof title === "string" && title.length > 0 && title.charAt(0) !== "-") ? title : "Gati"
+    var safeMessage = (typeof message === "string") ? message : ""
     if (notifyProc.running) {
       notifyProc.running = false
     }
@@ -208,14 +254,26 @@ Item {
       "notify-send",
       "-a", "Gati",
       "-u", urg,
-      title,
-      message
+      "--",
+      safeTitle,
+      safeMessage
     ]
     notifyProc.running = true
   }
 
   function saveState() {
-    if (!service.stateLoaded) return
+    if (!service.stateLoaded || service.restoring) return
+    saveDebounce.restart()
+  }
+
+  function persistNow() {
+    if (!service.stateLoaded || service.restoring) return
+    saveDebounce.stop()
+    service.flushState()
+  }
+
+  function flushState() {
+    if (!service.stateLoaded || service.restoring) return
     var data = {
       version: 1,
       state: service.state,
@@ -243,7 +301,13 @@ Item {
         todayDate: service.todayDate,
         todaySeconds: service.todayFocusSeconds,
         todaySessions: service.todayCompletedSessions,
-        todayBlocks: service.todayBlocks,
+        todayBlocks: Model.sanitizeTodayBlocks(
+          service.todayBlocks,
+          service.workDurationMin,
+          service.shortBreakMin,
+          service.longBreakMin,
+          service.maxSessions
+        ),
         streakDays: service.streakDays,
         lastActiveDate: service.lastActiveDate,
         totalFocusSeconds: service.totalFocusSeconds,
@@ -263,13 +327,21 @@ Item {
 
   function loadPersistedState(raw) {
     if (service.stateLoaded) return
-    service.stateLoaded = true
+    service.restoring = true
 
-    if (!raw || typeof raw !== "string" || raw.trim().length === 0) return
+    if (!raw || typeof raw !== "string" || raw.trim().length === 0) {
+      service.restoring = false
+      service.stateLoaded = true
+      return
+    }
 
     try {
       var data = JSON.parse(raw)
-      if (!data || typeof data !== "object") return
+      if (!data || typeof data !== "object") {
+        service.restoring = false
+        service.stateLoaded = true
+        return
+      }
 
       var validStates = [Model.STATE_IDLE, Model.STATE_WORK, Model.STATE_SHORT_BREAK, Model.STATE_LONG_BREAK]
       service.state = (typeof data.state === "string" && validStates.indexOf(data.state) !== -1)
@@ -281,15 +353,13 @@ Item {
         : 4
       service.maxSessions = Math.min(16, Math.max(1, maxSess))
 
-      if (typeof data.workflowMode === "string" && data.workflowMode.length > 0) {
-        service.workflowMode = data.workflowMode
-      }
+      service.workflowMode = Model.sanitizeWorkflowMode(data.workflowMode)
 
       if (typeof data.soundEnabled === "boolean") service.soundEnabled = data.soundEnabled
       if (typeof data.soundVolume === "number" && Number.isFinite(data.soundVolume)) {
         service.soundVolume = Math.min(100, Math.max(0, Math.floor(data.soundVolume)))
       }
-      if (typeof data.soundTheme === "string" && data.soundTheme.length > 0) {
+      if (data.soundTheme === "zen" || data.soundTheme === "crystal" || data.soundTheme === "marimba") {
         service.soundTheme = data.soundTheme
       }
       if (typeof data.notificationsEnabled === "boolean") service.notificationsEnabled = data.notificationsEnabled
@@ -338,11 +408,10 @@ Item {
             service.running = true
             timer.start()
           } else {
-            // Timer finished while shell was restarting
+            // Expired while the shell was down: freeze at 00:00, do not auto-advance.
             service.running = false
             service.remainingSeconds = 0
             service.targetEndTime = 0
-            service.finishSession()
           }
         } else {
           service.running = false
@@ -465,10 +534,16 @@ Item {
           service.todayCompletedSessions = todayEntry ? todayEntry.sessions : 0
 
           if (s.todayBlocks && Array.isArray(s.todayBlocks) && s.todayDate === today) {
-            service.todayBlocks = s.todayBlocks
+            service.todayBlocks = Model.sanitizeTodayBlocks(
+              s.todayBlocks,
+              service.workDurationMin,
+              service.shortBreakMin,
+              service.longBreakMin,
+              service.maxSessions
+            )
           } else if (service.todayCompletedSessions > 0) {
             var initialBlocks = []
-            for (var bIdx = 0; bIdx < service.todayCompletedSessions; bIdx++) {
+            for (var bIdx = 0; bIdx < Math.min(Model.MAX_TODAY_BLOCKS, service.todayCompletedSessions); bIdx++) {
               initialBlocks.push({
                 pomo: "completed",
                 pomoDuration: service.workDurationMin,
@@ -494,10 +569,16 @@ Item {
           service.todayCompletedSessions = Math.max(0, Math.floor(savedSess))
 
           if (s.todayBlocks && Array.isArray(s.todayBlocks)) {
-            service.todayBlocks = s.todayBlocks
+            service.todayBlocks = Model.sanitizeTodayBlocks(
+              s.todayBlocks,
+              service.workDurationMin,
+              service.shortBreakMin,
+              service.longBreakMin,
+              service.maxSessions
+            )
           } else if (service.todayCompletedSessions > 0) {
             var initialB = []
-            for (var bi = 0; bi < service.todayCompletedSessions; bi++) {
+            for (var bi = 0; bi < Math.min(Model.MAX_TODAY_BLOCKS, service.todayCompletedSessions); bi++) {
               initialB.push({
                 pomo: "completed",
                 pomoDuration: service.workDurationMin,
@@ -522,6 +603,8 @@ Item {
     } catch (e) {
       console.warn("Gati: failed to parse persisted state:", e)
     }
+    service.restoring = false
+    service.stateLoaded = true
   }
 
   function start() {
@@ -538,7 +621,7 @@ Item {
     running = true
     service.playSound("tick")
     timer.start()
-    saveState()
+    persistNow()
   }
 
   function pause() {
@@ -548,7 +631,7 @@ Item {
     }
     running = false
     timer.stop()
-    saveState()
+    persistNow()
   }
 
   function toggle() {
@@ -567,7 +650,7 @@ Item {
     totalSeconds = workDurationMin * 60
     remainingSeconds = totalSeconds
     targetEndTime = 0
-    saveState()
+    persistNow()
   }
 
   function startBreak(minutes) {
@@ -581,7 +664,7 @@ Item {
     targetEndTime = Date.now() + remainingSeconds * 1000
     running = true
     timer.start()
-    saveState()
+    persistNow()
   }
 
   function getTodayBlocks() {
@@ -594,7 +677,8 @@ Item {
     }
     var list = []
     if (service.todayBlocks && Array.isArray(service.todayBlocks)) {
-      for (var i = 0; i < service.todayBlocks.length; i++) {
+      var n = Math.min(Model.MAX_TODAY_BLOCKS, service.todayBlocks.length)
+      for (var i = 0; i < n; i++) {
         list.push(service.todayBlocks[i])
       }
     }
@@ -616,8 +700,8 @@ Item {
       blocks[currentIdx].pomoDuration = service.workDurationMin
       blocks[currentIdx].break = "pending"
     }
-    service.todayBlocks = blocks
-    saveState()
+    service.todayBlocks = Model.sanitizeTodayBlocks(blocks, service.workDurationMin, service.shortBreakMin, service.longBreakMin, service.maxSessions)
+    persistNow()
   }
 
   function recordPomoSkipped() {
@@ -635,8 +719,8 @@ Item {
       blocks[currentIdx].pomoDuration = service.workDurationMin
       blocks[currentIdx].break = "pending"
     }
-    service.todayBlocks = blocks
-    saveState()
+    service.todayBlocks = Model.sanitizeTodayBlocks(blocks, service.workDurationMin, service.shortBreakMin, service.longBreakMin, service.maxSessions)
+    persistNow()
   }
 
   function recordBreakCompleted() {
@@ -644,8 +728,8 @@ Item {
     if (blocks.length > 0) {
       var currentIdx = blocks.length - 1
       blocks[currentIdx].break = "completed"
-      service.todayBlocks = blocks
-      saveState()
+      service.todayBlocks = Model.sanitizeTodayBlocks(blocks, service.workDurationMin, service.shortBreakMin, service.longBreakMin, service.maxSessions)
+      persistNow()
     }
   }
 
@@ -654,8 +738,8 @@ Item {
     if (blocks.length > 0) {
       var currentIdx = blocks.length - 1
       blocks[currentIdx].break = "skipped"
-      service.todayBlocks = blocks
-      saveState()
+      service.todayBlocks = Model.sanitizeTodayBlocks(blocks, service.workDurationMin, service.shortBreakMin, service.longBreakMin, service.maxSessions)
+      persistNow()
     }
   }
 
@@ -681,8 +765,7 @@ Item {
 
   function getTodayDisplayBlocks() {
     var blocks = getTodayBlocks()
-    var target = Math.max(8, blocks.length + (service.state === Model.STATE_WORK || service.isBreakState ? 1 : 0))
-    target = Math.max(8, target)
+    var target = Math.max(service.dailyGoalSessions, blocks.length + (service.state === Model.STATE_WORK || service.isBreakState ? 1 : 0))
     var result = []
 
     var activeBlockIndex = -1
@@ -751,13 +834,13 @@ Item {
     } else {
       state = Model.STATE_SHORT_BREAK
       totalSeconds = shortBreakMin * 60
-      sessionIndex++
+      sessionIndex = Math.min(maxSessions, sessionIndex + 1)
     }
     remainingSeconds = totalSeconds
     targetEndTime = Date.now() + remainingSeconds * 1000
     running = true
     timer.start()
-    saveState()
+    persistNow()
   }
 
   function skip() {
@@ -781,7 +864,7 @@ Item {
     running = true
     service.playSound("tick")
     timer.start()
-    saveState()
+    persistNow()
   }
 
   function continueToNextFocus() {
@@ -798,7 +881,7 @@ Item {
     running = true
     service.playSound("tick")
     timer.start()
-    saveState()
+    persistNow()
   }
 
   function finishSession() {
@@ -891,7 +974,7 @@ Item {
       } else {
         state = Model.STATE_SHORT_BREAK
         totalSeconds = shortBreakMin * 60
-        sessionIndex++
+        sessionIndex = Math.min(maxSessions, sessionIndex + 1)
       }
       remainingSeconds = totalSeconds
       running = service.autoStartBreaks
@@ -919,7 +1002,7 @@ Item {
       timer.stop()
       running = false
     }
-    saveState()
+    persistNow()
   }
 
   function resetDailyStats() {
@@ -927,7 +1010,7 @@ Item {
     service.todayFocusSeconds = 0
     service.todayCompletedSessions = 0
     service.todayBlocks = []
-    saveState()
+    persistNow()
   }
 
   // --- WEEKLY METRICS & HELPERS ---
@@ -1148,7 +1231,7 @@ Item {
       return "Today: " + Model.formatHoursMinutes(service.todayFocusSeconds) +
         " (" + service.todayCompletedSessions + " sessions) · Streak: " +
         service.streakDays + (service.streakDays === 1 ? " day" : " days") +
-        " · Daily Goal: " + Math.min(100, Math.round((service.todayCompletedSessions / 8) * 100)) + "%"
+        " · Daily Goal: " + Model.goalPercent(service.todayCompletedSessions, service.dailyGoalSessions) + "%"
     } else if (p === "weekly" || p === "week") {
       return "Past 7 Days: " + Model.formatHoursMinutes(service.getWeeklyTotalSeconds()) +
         " (" + service.getWeeklyTotalSessions() + " sessions) · Daily Avg: " +
@@ -1180,7 +1263,7 @@ Item {
         focusSeconds: service.todayFocusSeconds,
         sessions: service.todayCompletedSessions,
         streakDays: service.streakDays,
-        goalPercentage: Math.min(100, Math.round((service.todayCompletedSessions / 8) * 100))
+        goalPercentage: Model.goalPercent(service.todayCompletedSessions, service.dailyGoalSessions)
       },
       weekly: {
         totalSeconds: service.getWeeklyTotalSeconds(),
@@ -1210,6 +1293,21 @@ Item {
         totalSessions: service.totalCompletedSessionsLifetime
       }
     }
+  }
+
+  Timer {
+    id: saveDebounce
+    interval: 250
+    repeat: false
+    onTriggered: service.flushState()
+  }
+
+  Timer {
+    id: persistHeartbeat
+    interval: 15000
+    repeat: true
+    running: service.running && service.stateLoaded && !service.restoring
+    onTriggered: service.flushState()
   }
 
   Timer {
@@ -1247,6 +1345,8 @@ Item {
   }
 
   Component.onDestruction: {
+    if (service.stateLoaded && !service.restoring)
+      service.flushState()
     if (readProc.running) readProc.running = false
     if (writeProc.running) writeProc.running = false
   }
