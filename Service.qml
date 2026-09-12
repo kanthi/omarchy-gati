@@ -191,9 +191,6 @@ Item {
       if (exitCode !== 0)
         service.advanceSoundFallback()
     }
-    onErrorOccurred: function(error) {
-      service.advanceSoundFallback()
-    }
   }
 
   Process {
